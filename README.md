@@ -7,14 +7,17 @@ A personal notes and planner web app — write notes and manage a calendar with 
 Work in progress — first full project built from scratch.
 
 **Done:**
-- Login page (email input, client-side validation)
-- Language switcher UI (English/Ukrainian — not functional yet)
+- Login page: email input with validation
+- Email verification code step (generated/checked client-side for now — temporary, will move to the backend)
+- Resend code button with countdown timer
+- Language switcher UI (English/Ukrainian — visual only, not functional yet)
+- Responsive layout
+- Basic semantic HTML / accessibility (correct `lang`, meta description, ARIA attributes)
 
 **Planned:**
-- Email verification code flow
+- Real backend-based email verification (Node.js + Express + SQLite)
 - Notes section
 - Calendar section
-- Node.js + Express backend with SQLite database
 - Dark/light theme toggle
 - Full language switching
 
