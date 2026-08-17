@@ -1,0 +1,24 @@
+{
+  "name": "notes-planner",
+  "version": "1.0.0",
+  "description": "A personal notes and planner web app — write notes and manage a calendar with scheduled events, behind a simple email-based login.",
+  "main": "script.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Volodymyr1006/Notes-Planner.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Volodymyr1006/Notes-Planner/issues"
+  },
+  "homepage": "https://github.com/Volodymyr1006/Notes-Planner#readme",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
