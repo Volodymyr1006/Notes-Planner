@@ -27,15 +27,15 @@ function startCountdown() {
  } , 1000);
 }
 
-resendBtn.addEventListener('click', function() {
-  generatedCode = String(Math.floor(10000 + Math.random() * 90000));
-  console.log('Код підтвердження (тимчасово для тесту)' + generatedCode);
+resendBtn.addEventListener('click', function () {
+  fetch('/request-code', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: input.value })
+  });
   startCountdown();
-})
+});
 
-// ТИМЧАСОВО: код перевіряється прямо в браузері, замість справжнього бекенду.
-// Видалити весь блок з коментарем "ТИМЧАСОВО", коли буде готовий Node.js сервер.
-let generatedCode = null;
 
 form.addEventListener('submit', function (onSubmit) {
   onSubmit.preventDefault();
@@ -60,17 +60,30 @@ form.addEventListener('submit', function (onSubmit) {
        startCountdown();
       }, 100);
 
-      // ТИМЧАСОВО: генеруємо код тут, замість відправки на email
-      generatedCode = String(Math.floor(10000 + Math.random() * 90000));
-      console.log('Код підтвердження (тимчасово, для тесту):', generatedCode);
+      
+      fetch('/request-code', {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({ email: input.value })
+      });
     }
   } else {
-    if (codeInput.value.trim() === generatedCode) {
-      codeError.classList.remove('show');
-      alert('Код правильний! (далі тут буде перехід у кабінет)');
-    } else {
-      codeError.classList.add('show');
-    }
+    fetch('/verify-code', {
+     method: 'POST',
+     headers: { 'Content-Type': 'application/json' },
+     body: JSON.stringify({ email: input.value, code: codeInput.value.trim() })
+    })
+   .then(function (response) {
+    return response.json();
+    })
+   .then(function (data) {
+     if (data.success) {
+       codeError.classList.remove('show');
+       alert('Код правильний! (далі тут буде перехід у кабінет)');
+     } else {
+        codeError.classList.add('show');
+      }
+    });
   }
 });
 
