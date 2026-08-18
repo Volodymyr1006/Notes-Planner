@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Notes Planner — особистий застосунок для нотаток і планування подій у календарі.">
+<title>Кабінет — Notes Planner</title>
+<link rel="icon" href="imgs/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <button class="btn-icon sidebar-close" id="sidebarClose"><svg class="icon icon-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    <a href="#" class="sidebar-logo"><img src="imgs/logo.svg" alt="Нота" class="sidebar-logo-img"></a>
+
+    <nav class="sidebar-nav" id="sidebarNav">
+      <span class="nav-indicator" id="navIndicator"></span>
+      <button class="nav-item active" data-view="overview">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M4 11 12 4l8 7M6 10v9h5v-5h2v5h5v-9"/></svg>
+        Огляд
+      </button>
+      <button class="nav-item" data-view="notes">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M6 3h9l5 5v13H6z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg>
+        Нотатки
+        <span class="nav-badge" id="notesBadge">0</span>
+      </button>
+      <button class="nav-item" data-view="calendar">
+        <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+        Календар
+      </button>
+      <button class="nav-item" data-view="profile">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-3.6 3.1-6.2 7-6.2s7 2.6 7 6.2"/></svg>
+        Профіль
+      </button>
+    </nav>
+
+    <button class="btn btn-primary sidebar-cta" id="newListBtn">
+      <svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      Новий список
+    </button>
+
+    <div class="sidebar-section-label">Мої списки</div>
+    <div class="lists-scroll" id="listsScroll"></div>
+
+    <div class="sidebar-footer">
+      <div class="profile-mini" id="profileMini">
+        <div class="avatar avatar-sm" id="avatarSm">В</div>
+        <div class="who">
+          <div class="n" id="sidebarName">Володимир</div>
+          <div class="e" id="sidebarEmail">volodymyrromanyshyn15@gmail.com</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="btn-icon menu-burger" id="menuBurger"><svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+        <div>
+          <h1 id="topbarTitle">Огляд</h1>
+          <div class="topbar-sub" id="topbarSub"></div>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="topbarAdd">
+        <svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        <span id="topbarAddLabel">Список</span>
+      </button>
+    </div>
+
+    <div class="content">
+
+      <!-- OVERVIEW -->
+      <section class="view active" id="view-overview">
+        <div class="greeting">
+          <h2 id="greetingText">Привіт, Володимире 👋</h2>
+          <p id="greetingDate"></p>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M6 3h9l5 5v13H6z"/></svg></div><div class="val" id="statLists">0</div><div class="lbl">Списків</div></div>
+          <div class="stat-card"><div class="stat-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div><div class="val" id="statDone">0</div><div class="lbl">Виконано</div></div>
+          <div class="stat-card"><div class="stat-icon"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></div><div class="val" id="statActive">0</div><div class="lbl">Активні пункти</div></div>
+          <div class="stat-card"><div class="stat-icon"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18"/></svg></div><div class="val" id="statEvents">0</div><div class="lbl">Подій сьогодні</div></div>
+        </div>
+        <div class="dash-grid">
+          <div class="card-panel">
+            <h3>План на сьогодні <a href="#" data-goto="calendar">Календар →</a></h3>
+            <div class="agenda-mini" id="agendaMini"></div>
+          </div>
+          <div class="card-panel">
+            <h3>Прогрес списків <a href="#" data-goto="notes">Всі →</a></h3>
+            <div class="lists-progress" id="listsProgress"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- NOTES -->
+      <section class="view" id="view-notes">
+        <div class="notes-head">
+          <div>
+            <h2 id="notesListName">—</h2>
+            <p class="notes-sub" id="notesListSub">0 з 0 виконано</p>
+          </div>
+          <button class="btn-icon danger" id="deleteListBtn" title="Видалити список"><svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13"/></svg></button>
+        </div>
+        <div class="progress-track"><div class="progress-fill" id="notesProgressFill" style="width:0%"></div></div>
+        <div class="quick-add">
+          <input type="text" id="quickAddInput" placeholder="Додати нову нотатку і натиснути Enter...">
+          <button class="btn btn-primary" id="quickAddBtn">
+            <svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            Додати
+          </button>
+        </div>
+        <div class="check-list" id="checkList"></div>
+        <div id="notesEmptyWrap"></div>
+        <div class="notes-footer-row" id="notesFooterRow" style="display:none;">
+          <span id="notesCountText"></span>
+          <button class="btn-ghost" style="padding:7px 12px;border-radius:9px;font-size:12.5px;" id="clearDoneBtn">Очистити виконані</button>
+        </div>
+      </section>
+
+      <!-- CALENDAR -->
+      <section class="view" id="view-calendar">
+        <div class="cal-toolbar">
+          <div class="cal-nav">
+            <button class="btn-icon" id="calPrev"><svg class="icon" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+            <div class="cal-title" id="calTitle"></div>
+            <button class="btn-icon" id="calNext"><svg class="icon" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+          </div>
+          <button class="cal-today-btn" id="calToday">Сьогодні</button>
+        </div>
+        <div class="weekdays"><span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Нд</span></div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+        <div class="calendar-agenda" id="calendarAgenda"></div>
+      </section>
+
+      <!-- PROFILE -->
+      <section class="view" id="view-profile">
+        <div class="profile-card">
+          <div class="avatar-upload-wrap" id="avatarUploadWrap">
+            <div class="avatar avatar-lg" id="avatarLg">В</div>
+            <button type="button" class="avatar-hover-btn" id="avatarEditBtn" title="Змінити фото">
+              <svg class="icon" style="width:22px;height:22px" viewBox="0 0 24 24"><path d="M4 7h3l1.5-2.5h7L17 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg>
+            </button>
+            <button type="button" class="avatar-remove-btn" id="avatarRemoveBtn" title="Прибрати фото">
+              <svg class="icon icon-x" style="width:11px;height:11px" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+            <input type="file" id="avatarFileInput" accept="image/*" style="display:none;">
+          </div>
+          <div class="name-block">
+            <h2 id="profileName">Володимир</h2>
+            <p id="profileEmailDisplay">volodymyrromanyshyn15@gmail.com</p>
+            <div class="profile-stats">
+              <div><div class="v" id="profStatLists">0</div><div class="l">списків</div></div>
+              <div><div class="v" id="profStatDone">0</div><div class="l">виконано</div></div>
+              <div><div class="v" id="profJoinDate">—</div><div class="l">у Ноті з</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="card-panel" style="margin-bottom:16px;">
+          <h3>Особисті дані</h3>
+          <div class="profile-grid">
+            <div class="field"><label>Ім'я</label><input type="text" id="profileNameInput" value="Володимир"></div>
+            <div class="field"><label>Пошта</label><input type="text" id="profileEmailInput" value="volodymyrromanyshyn15@gmail.com"></div>
+          </div>
+        </div>
+        <div class="card-panel">
+          <h3>Налаштування</h3>
+          <div class="pref-row">
+            <div><div class="t">Сповіщення про плани</div><div class="d">Нагадувати про події з календаря</div></div>
+            <div class="toggle on" data-pref="notif"><div class="knob"></div></div>
+          </div>
+          <div class="pref-row">
+            <div><div class="t">Показувати підказки</div><div class="d">Короткі поради у порожніх станах</div></div>
+            <div class="toggle on" data-pref="hints"><div class="knob"></div></div>
+          </div>
+          <div class="pref-row">
+            <div><div class="t">Компактний режим</div><div class="d">Менші відступи у списках нотаток</div></div>
+            <div class="toggle" data-pref="compact"><div class="knob"></div></div>
+          </div>
+          <div class="pref-row">
+            <div><div class="t">Темна тема</div><div class="d">Перемикання на світлу версію (скоро)</div></div>
+            <div class="toggle on" data-pref="theme"><div class="knob"></div></div>
+          </div>
+          <div class="pref-row">
+            <div><div class="t">Мова інтерфейсу</div><div class="d">Переклад дизайну ще не підключено</div></div>
+            <div class="lang-segment" id="profileLangSegment">
+              <span class="lang-seg-indicator" id="langSegIndicator"></span>
+              <button type="button" class="lang-seg-btn active" data-lang="ua">UA</button>
+              <button type="button" class="lang-seg-btn" data-lang="en">EN</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- NEW LIST MODAL -->
+<div class="modal-overlay" id="listModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Новий список</h3>
+      <button class="modal-close" id="listModalClose"><svg class="icon icon-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+    <div class="field">
+      <label>Назва списку</label>
+      <input type="text" id="listNameInput" placeholder="Наприклад, Покупки">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="listCreateBtn" style="width:100%;">Створити</button>
+    </div>
+  </div>
+</div>
+
+<!-- EVENT MODAL -->
+<div class="modal-overlay" id="eventModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="eventModalTitle">Новий план</h3>
+      <button class="modal-close" id="eventModalClose"><svg class="icon icon-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+    <div class="field"><label>Що плануєш?</label><input type="text" id="eventTitleInput" placeholder="Наприклад, Зустріч з командою"></div>
+    <div class="field-row">
+      <div class="field"><label>Дата</label><input type="date" id="eventDateInput"></div>
+      <div class="field"><label>Час</label><input type="time" id="eventTimeInput"></div>
+    </div>
+    <div class="field"><label>Категорія</label><div class="swatches" id="eventSwatches"></div></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger-ghost" id="eventDeleteBtn" style="display:none;">Видалити</button>
+      <button class="btn btn-primary" id="eventSaveBtn">Зберегти</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">
+  <span class="tick"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>
+  <span id="toastMsg">Збережено</span>
+</div>
+
+<script src="dashboard.js"></script>
+</body>
+</html>
