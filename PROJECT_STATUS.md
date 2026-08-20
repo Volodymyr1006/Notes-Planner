@@ -25,16 +25,25 @@
 
 ## Структура файлів проекту
 
+Проект розділено по папках (фронтенд/бекенд, і всередині фронтенду — сторінки/стилі/скрипти/картинки окремо), сервер віддає сторінки через явні маршрути (`/`, `/login`, `/dashboard`), а не напряму по `.html`-іменах:
+
 ```
-index.html      — головна/лендінг сторінка (лого, заголовок, кнопка "Реєстрація" → login.html)
-login.html      — форма входу (email → код підтвердження, з таймером на повторну відправку)
-dashboard.html  — кабінет: бічна панель + розділи (Огляд/Профіль/Календар/Нотатки)
-styles.css      — усі стилі одним файлом (уже великий, план розділити пізніше)
-script.js       — логіка login.html (валідація email, код, таймер)
-home.js         — логіка index.html (тільки перемикач мови)
-dashboard.js    — логіка dashboard.html (перемикання розділів, створення списків нотаток)
-server.js       — Express-сервер (роздає сайт + /request-code, /verify-code)
-imgs/           — favicon.svg, logo.svg (лого — три гори)
+pages/
+  index.html      — головна/лендінг сторінка (лого, заголовок, кнопка "Реєстрація" → /login)
+  login.html      — форма входу (email → код підтвердження, з таймером на повторну відправку)
+  dashboard.html  — кабінет: бічна панель + розділи (Огляд/Нотатки/Глосарій/Календар/Профіль)
+public/
+  css/
+    styles.css     — стилі index.html і login.html
+    dashboard.css  — стилі кабінету
+  js/
+    script.js      — логіка login.html (валідація email, код, таймер)
+    home.js        — логіка index.html (тільки перемикач мови)
+    dashboard.js   — логіка dashboard.html (кабінет, нотатки, глосарій, календар, профіль)
+  imgs/
+    favicon.svg, logo.svg — лого (три гори)
+server/
+  server.js       — Express-сервер: роздає public/ як статику, маршрути /, /login, /dashboard, /request-code, /verify-code
 package.json, package-lock.json, node_modules/ (в .gitignore)
 ```
 
