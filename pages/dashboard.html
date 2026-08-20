@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="Notes Planner — особистий застосунок для нотаток і планування подій у календарі.">
 <title>Кабінет — Notes Planner</title>
-<link rel="icon" href="imgs/favicon.svg">
+<link rel="icon" href="/imgs/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="dashboard.css">
+<link rel="stylesheet" href="/css/dashboard.css">
 </head>
 <body>
 
@@ -18,7 +18,7 @@
 <div class="app-shell">
   <aside class="sidebar" id="sidebar">
     <button class="btn-icon sidebar-close" id="sidebarClose"><svg class="icon icon-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
-    <a href="#" class="sidebar-logo"><img src="imgs/logo.svg" alt="Нота" class="sidebar-logo-img"></a>
+    <a href="#" class="sidebar-logo"><img src="/imgs/logo.svg" alt="Нота" class="sidebar-logo-img"></a>
 
     <nav class="sidebar-nav" id="sidebarNav">
       <span class="nav-indicator" id="navIndicator"></span>
@@ -30,6 +30,11 @@
         <svg class="icon" viewBox="0 0 24 24"><path d="M6 3h9l5 5v13H6z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg>
         Нотатки
         <span class="nav-badge" id="notesBadge">0</span>
+      </button>
+      <button class="nav-item" data-view="glossary">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/></svg>
+        Глосарій
+        <span class="nav-badge" id="glossaryBadge">0</span>
       </button>
       <button class="nav-item" data-view="calendar">
         <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
@@ -124,6 +129,26 @@
           <span id="notesCountText"></span>
           <button class="btn-ghost" style="padding:7px 12px;border-radius:9px;font-size:12.5px;" id="clearDoneBtn">Очистити виконані</button>
         </div>
+      </section>
+
+      <!-- GLOSSARY (Розширені нотатки) -->
+      <section class="view" id="view-glossary">
+        <div class="glossary-toolbar">
+          <div class="search-box">
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="glossarySearch" placeholder="Пошук за терміном чи поясненням...">
+          </div>
+          <div class="view-toggle" id="glossaryViewToggle">
+            <button class="active" data-mode="all">Всі терміни</button>
+            <button data-mode="grouped">За категорією</button>
+          </div>
+          <button class="btn-icon" id="reviewBtn" title="Повторити терміни">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></svg>
+          </button>
+        </div>
+        <div class="chip-row" id="glossaryFilters"></div>
+        <div class="glossary-list" id="glossaryList"></div>
+        <div id="glossaryEmptyWrap"></div>
       </section>
 
       <!-- CALENDAR -->
@@ -241,11 +266,138 @@
   </div>
 </div>
 
+<!-- GLOSSARY TERM MODAL (roomy) -->
+<div class="modal-overlay" id="glossaryModal">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <h3 id="glossaryModalTitle">Новий термін</h3>
+      <button class="modal-close" id="glossaryModalClose"><svg class="icon icon-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+
+    <div class="modal-body">
+      <div class="field field-term-lg">
+        <label>Термін</label>
+        <input type="text" id="glossaryTermInput" placeholder="Наприклад, API">
+      </div>
+
+      <div class="meta-row">
+        <div class="field">
+          <label>Категорія</label>
+          <div class="category-combo" id="categoryCombo">
+            <input type="text" id="glossaryCategoryInput" placeholder="Наприклад, Розробка" autocomplete="off">
+            <button type="button" class="category-combo-toggle" id="categoryComboToggle" tabindex="-1" aria-label="Показати список категорій">
+              <svg class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <ul class="category-suggest" id="categorySuggestList"></ul>
+          </div>
+          <div class="swatches" id="categoryColorSwatches" style="margin-top:10px;"></div>
+        </div>
+        <div class="field">
+          <label>Пріоритет</label>
+          <div class="priority-picker" id="priorityPicker"></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="editor-label-row">
+          <label>Пояснення</label>
+          <span class="editor-hint">
+            <svg class="icon" style="width:13px;height:13px" viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg>
+            Виділи слово — з'явиться панель форматування
+          </span>
+        </div>
+        <div class="rich-editor" id="glossaryExplInput" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Пояснення терміна" data-placeholder="Поясни своїми словами, щоб легше запам'яталось... Виділи текст, щоб підкреслити чи виділити маркером найважливіше."></div>
+      </div>
+
+      <div class="field">
+        <div class="editor-label-row">
+          <label>Зображення</label>
+          <div class="editor-tools">
+            <span class="editor-hint">Показуються під текстом, можна плавно змінювати розмір</span>
+            <button type="button" class="img-add-btn" id="glossaryImgBtn" title="Додати зображення чи скріншот">
+              <svg class="icon" style="width:13px;height:13px" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="15" rx="2.5"/><circle cx="9" cy="10.5" r="1.6"/><path d="m4 17 5-5 3.5 3.5L17 11l3.5 3.5"/></svg>
+              Зображення
+            </button>
+            <input type="file" id="glossaryImgInput" accept="image/*" multiple style="display:none">
+          </div>
+        </div>
+        <div class="img-gallery" id="glossaryImgGallery"></div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-danger-ghost" id="glossaryDeleteBtn" style="display:none;">Видалити</button>
+      <button class="btn btn-primary" id="glossarySaveBtn">Зберегти</button>
+    </div>
+  </div>
+</div>
+
+<!-- floating selection formatting toolbar -->
+<div class="selection-toolbar" id="selectionToolbar">
+  <div class="st-row">
+    <button type="button" data-cmd="bold" title="Жирний (B)"><b>B</b></button>
+    <button type="button" data-cmd="underline" title="Підкреслити (U)"><u>U</u></button>
+    <span class="sep"></span>
+    <button type="button" data-cmd="highlight" title="Виділити маркером — обрати колір">
+      <svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24"><path d="m9 11-6 6v4h4l6-6"/><path d="m14.5 6.5 3 3L21 6l-3-3-3.5 3.5Z"/></svg>
+    </button>
+    <button type="button" data-cmd="clear" title="Прибрати форматування">
+      <svg class="icon" style="width:14px;height:14px" viewBox="0 0 24 24"><path d="M4 7V4h13M9 7l3 13M15 7l-1.5 6.5M6 20h6"/></svg>
+    </button>
+    <button type="button" data-cmd="copy" title="Скопіювати виділений текст">
+      <svg class="icon" style="width:14px;height:14px" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+    </button>
+  </div>
+  <div class="st-colors" id="highlightColors">
+    <button type="button" class="color-swatch" data-color="#ffe100" style="--c:#ffe100" aria-label="Жовтий"></button>
+    <button type="button" class="color-swatch" data-color="#8ce99a" style="--c:#8ce99a" aria-label="Зелений"></button>
+    <button type="button" class="color-swatch" data-color="#7dd3fc" style="--c:#7dd3fc" aria-label="Блакитний"></button>
+    <button type="button" class="color-swatch" data-color="#f8a1c4" style="--c:#f8a1c4" aria-label="Рожевий"></button>
+    <button type="button" class="color-swatch" data-color="#c4b1ff" style="--c:#c4b1ff" aria-label="Фіолетовий"></button>
+  </div>
+</div>
+
+<!-- REVIEW (FLASHCARDS) MODAL -->
+<div class="modal-overlay review-modal" id="reviewModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Повторення термінів</h3>
+      <button class="modal-close" id="reviewModalClose"><svg class="icon icon-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+    <div id="reviewBody">
+      <div class="review-progress" id="reviewProgress">1 / 1</div>
+      <div class="flip-card-viewport" id="flipCardViewport">
+        <div class="flip-card" id="flipCard">
+          <div class="flip-card-inner">
+            <div class="flip-face front">
+              <div class="badges" id="reviewBadgesFront"></div>
+              <h3 id="reviewTermText">—</h3>
+            </div>
+            <div class="flip-face back">
+              <div class="badges" id="reviewBadgesBack"></div>
+              <div id="reviewExplText"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="flip-hint">Натисни на картку, щоб побачити пояснення</div>
+      <div class="review-controls">
+        <button class="btn-icon" id="reviewPrev" title="Попередній"><svg class="icon" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+        <div class="side">
+          <button class="btn-ghost" id="reviewShuffle" style="padding:9px 14px;border-radius:10px;font-size:12.5px;">Перемішати</button>
+        </div>
+        <button class="btn-icon" id="reviewNext" title="Наступний"><svg class="icon" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+      </div>
+    </div>
+    <div id="reviewEmptyWrap" style="display:none;"></div>
+  </div>
+</div>
+
 <div class="toast" id="toast">
   <span class="tick"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>
   <span id="toastMsg">Збережено</span>
 </div>
 
-<script src="dashboard.js"></script>
+<script src="/js/dashboard.js"></script>
 </body>
 </html>

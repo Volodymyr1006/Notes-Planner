@@ -1,9 +1,24 @@
+const path = require('path');
 const express = require('express');
 const app = express();
 
 app.use(express.json());
 
-app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname, '..', 'public')));
+
+const pagesDir = path.join(__dirname, '..', 'pages');
+
+app.get('/', function (req, res) {
+  res.sendFile(path.join(pagesDir, 'index.html'));
+});
+
+app.get('/login', function (req, res) {
+  res.sendFile(path.join(pagesDir, 'login.html'));
+});
+
+app.get('/dashboard', function (req, res) {
+  res.sendFile(path.join(pagesDir, 'dashboard.html'));
+});
 
 let verificationCodes = {};
 

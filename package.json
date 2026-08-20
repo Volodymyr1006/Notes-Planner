@@ -2,8 +2,9 @@
   "name": "notes-planner",
   "version": "1.0.0",
   "description": "A personal notes and planner web app — write notes and manage a calendar with scheduled events, behind a simple email-based login.",
-  "main": "script.js",
+  "main": "server/server.js",
   "scripts": {
+    "start": "node server/server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
