@@ -63,6 +63,7 @@ let glossary = [
 ];
 let glossarySearchQuery = '';
 let glossaryFilterCategory = 'all';
+let glossarySortOrder = 'default';
 let glossaryViewMode = 'all';
 let editingGlossaryId = null;
 let selectedPriority = 'medium';
@@ -213,7 +214,7 @@ function setActiveView(name, opts={}){
   closeSidebarMobile();
   if(name==='overview') renderOverview();
   if(name==='notes') renderNotes();
-  if(name==='glossary') renderGlossary();
+  if(name==='glossary'){ renderGlossary(); moveGlossaryViewIndicator(document.querySelector('#glossaryViewToggle button.active')); }
   if(name==='calendar') renderCalendar();
 }
 navItems.forEach(n=>n.addEventListener('click', ()=>setActiveView(n.dataset.view)));
@@ -422,7 +423,7 @@ const glossarySearchInput = document.getElementById('glossarySearch');
 function glossaryCategories(){ return [...new Set(glossary.map(t=>t.category).filter(Boolean))].sort(); }
 
 function filteredGlossary(){
-  return glossary.filter(t=>{
+  const result = glossary.filter(t=>{
     if(glossaryFilterCategory!=='all' && t.category!==glossaryFilterCategory) return false;
     if(glossarySearchQuery){
       const q = glossarySearchQuery;
@@ -431,6 +432,9 @@ function filteredGlossary(){
     }
     return true;
   });
+  if(glossarySortOrder==='az') result.sort((a,b)=>a.term.localeCompare(b.term,'uk'));
+  else if(glossarySortOrder==='za') result.sort((a,b)=>b.term.localeCompare(a.term,'uk'));
+  return result;
 }
 
 function renderGlossaryFilters(){
@@ -445,10 +449,11 @@ function renderGlossaryFilters(){
   });
 }
 
-function termRowHtml(t){
+function termRowHtml(t, i=0){
   const col = categoryColor(t.category || 'Без категорії');
   const pr = priorityInfo(t.priority);
-  return `<div class="term-row" data-term="${t.id}">
+  const delay = Math.min(i, 10) * 35;
+  return `<div class="term-row" data-term="${t.id}" style="animation-delay:${delay}ms">
     <span class="priority-flag" style="background:${pr.color}" title="Пріоритет: ${pr.label}"></span>
     <span class="t-term">${esc(t.term)}</span>
     <span class="t-expl">${t.explanationHtml || ''}</span>
@@ -480,15 +485,17 @@ function renderGlossary(){
   if(glossaryViewMode==='grouped'){
     const groups = {};
     items.forEach(t=>{ const c=t.category||'Без категорії'; (groups[c]||=[]).push(t); });
+    let idx = 0;
     glossaryListEl.innerHTML = Object.keys(groups).sort().map(cat=>{
       const col = categoryColor(cat);
+      const rows = groups[cat].map(t=>termRowHtml(t, idx++)).join('');
       return `<div class="glossary-group">
         <div class="glossary-group-head"><span class="dot" style="background:${col}"></span><h4>${esc(cat)}</h4><span class="n">${groups[cat].length}</span></div>
-        <div class="glossary-list">${groups[cat].map(termRowHtml).join('')}</div>
+        <div class="glossary-list">${rows}</div>
       </div>`;
     }).join('');
   } else {
-    glossaryListEl.innerHTML = items.map(termRowHtml).join('');
+    glossaryListEl.innerHTML = items.map((t,i)=>termRowHtml(t,i)).join('');
   }
 
   glossaryListEl.querySelectorAll('.term-row').forEach(row=>{
@@ -496,14 +503,42 @@ function renderGlossary(){
   });
 }
 
+const glossaryViewIndicator = document.getElementById('glossaryViewIndicator');
+function moveGlossaryViewIndicator(btn){
+  glossaryViewIndicator.style.width = btn.offsetWidth + 'px';
+  glossaryViewIndicator.style.left = btn.offsetLeft + 'px';
+}
 document.getElementById('glossaryViewToggle').addEventListener('click',(e)=>{
   const btn = e.target.closest('button[data-mode]');
   if(!btn) return;
   glossaryViewMode = btn.dataset.mode;
   document.querySelectorAll('#glossaryViewToggle button').forEach(b=>b.classList.toggle('active', b===btn));
+  moveGlossaryViewIndicator(btn);
   renderGlossary();
 });
+moveGlossaryViewIndicator(document.querySelector('#glossaryViewToggle button.active'));
 glossarySearchInput.addEventListener('input',(e)=>{ glossarySearchQuery = e.target.value.trim().toLowerCase(); renderGlossary(); });
+
+/* ---- власний випадаючий список сортування (той самий підхід, що й categoryCombo) ---- */
+const sortCombo = document.getElementById('sortCombo');
+const sortComboToggle = document.getElementById('sortComboToggle');
+const sortComboLabel = document.getElementById('sortComboLabel');
+const sortSuggestList = document.getElementById('sortSuggestList');
+
+function openSortCombo(){ sortCombo.classList.add('open'); }
+function closeSortCombo(){ sortCombo.classList.remove('open'); }
+sortComboToggle.addEventListener('click', ()=>{
+  sortCombo.classList.contains('open') ? closeSortCombo() : openSortCombo();
+});
+sortSuggestList.querySelectorAll('li[data-value]').forEach(li=>{
+  li.addEventListener('click', ()=>{
+    glossarySortOrder = li.dataset.value;
+    sortComboLabel.textContent = li.textContent;
+    sortSuggestList.querySelectorAll('li').forEach(x=>x.classList.toggle('active', x===li));
+    closeSortCombo();
+    renderGlossary();
+  });
+});
 
 /* ---- glossary term modal (roomy, with priority + rich text) ---- */
 const glossaryModal = document.getElementById('glossaryModal');
@@ -583,9 +618,10 @@ glossaryCategoryInput.addEventListener('focus', openCategoryCombo);
 glossaryCategoryInput.addEventListener('input', renderCategorySuggestions);
 document.addEventListener('click', (e)=>{
   if(!categoryCombo.contains(e.target)) closeCategoryCombo();
+  if(!sortCombo.contains(e.target)) closeSortCombo();
 });
 document.addEventListener('keydown', (e)=>{
-  if(e.key==='Escape') closeCategoryCombo();
+  if(e.key==='Escape'){ closeCategoryCombo(); closeSortCombo(); }
 });
 
 function openGlossaryModal(id=null){

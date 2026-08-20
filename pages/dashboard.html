@@ -139,8 +139,20 @@
             <input type="text" id="glossarySearch" placeholder="Пошук за терміном чи поясненням...">
           </div>
           <div class="view-toggle" id="glossaryViewToggle">
+            <span class="view-toggle-indicator" id="glossaryViewIndicator"></span>
             <button class="active" data-mode="all">Всі терміни</button>
             <button data-mode="grouped">За категорією</button>
+          </div>
+          <div class="sort-combo" id="sortCombo">
+            <button type="button" class="sort-combo-toggle" id="sortComboToggle" aria-label="Сортування">
+              <span id="sortComboLabel">Спочатку нові</span>
+              <svg class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <ul class="sort-suggest" id="sortSuggestList">
+              <li data-value="default" class="active">Спочатку нові</li>
+              <li data-value="az">За алфавітом (А-Я)</li>
+              <li data-value="za">За алфавітом (Я-А)</li>
+            </ul>
           </div>
           <button class="btn-icon" id="reviewBtn" title="Повторити терміни">
             <svg class="icon" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></svg>
