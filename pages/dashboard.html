@@ -270,15 +270,72 @@
       <button class="modal-close" id="eventModalClose"><svg class="icon icon-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </div>
     <div class="field"><label>Що плануєш?</label><input type="text" id="eventTitleInput" placeholder="Наприклад, Зустріч з командою"></div>
+    <div class="field"><label>Дата</label><input type="date" id="eventDateInput"></div>
     <div class="field-row">
-      <div class="field"><label>Дата</label><input type="date" id="eventDateInput"></div>
-      <div class="field"><label>Час</label><input type="time" id="eventTimeInput"></div>
+      <div class="field">
+        <label>Початок</label>
+        <div class="time-stepper">
+          <button type="button" class="time-stepper-btn" data-dir="-1" tabindex="-1"><svg class="icon" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+          <input type="text" class="time-stepper-input" id="eventTimeInput" placeholder="--:--" inputmode="numeric" autocomplete="off">
+          <button type="button" class="time-stepper-btn" data-dir="1" tabindex="-1"><svg class="icon" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Кінець</label>
+        <div class="time-stepper">
+          <button type="button" class="time-stepper-btn" data-dir="-1" tabindex="-1"><svg class="icon" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+          <input type="text" class="time-stepper-input" id="eventEndTimeInput" placeholder="--:--" inputmode="numeric" autocomplete="off">
+          <button type="button" class="time-stepper-btn" data-dir="1" tabindex="-1"><svg class="icon" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+        </div>
+      </div>
     </div>
-    <div class="field"><label>Категорія</label><div class="swatches" id="eventSwatches"></div></div>
+    <div class="field">
+      <label>Тип</label>
+      <div class="event-type-row">
+        <div class="category-combo" id="eventTypeCombo">
+          <input type="text" id="eventTypeInput" placeholder="Наприклад, Робота" autocomplete="off">
+          <button type="button" class="category-combo-toggle" id="eventTypeComboToggle" tabindex="-1" aria-label="Показати список типів">
+            <svg class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <ul class="category-suggest" id="eventTypeSuggestList"></ul>
+        </div>
+        <button type="button" class="type-color-dot" id="eventTypeColorDot" title="Обрати колір типу">
+          <svg class="icon" viewBox="0 0 24 24">
+            <path d="M12 3a9 9 0 1 0 0 18c1 0 1.8-.8 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.4-.7-.4-1.1 0-1 .8-1.8 1.8-1.8h1.9C19.6 15.1 21 13.2 21 11c0-4.4-4-8-9-8Z"/>
+            <circle cx="7.3" cy="10.3" r=".9"/><circle cx="10" cy="6.8" r=".9"/><circle cx="14.7" cy="6.8" r=".9"/><circle cx="17.3" cy="10.3" r=".9"/>
+          </svg>
+        </button>
+      </div>
+      <div class="swatches-collapse" id="eventTypeSwatchesWrap">
+        <div class="swatches color-picker-swatches" id="eventTypeColorSwatches"></div>
+      </div>
+    </div>
+    <div class="field"><label>Локація</label><input type="text" id="eventLocationInput" placeholder="Наприклад, офіс або посилання на дзвінок"></div>
+    <div class="field"><label>Нотатка</label><textarea class="autogrow-textarea" id="eventNoteInput" placeholder="Додаткові деталі про подію..."></textarea></div>
+    <div class="field">
+      <label>Нагадування <span class="field-hint-inline">(поки лише зберігається — реальна відправка на email буде пізніше)</span></label>
+      <input type="datetime-local" id="eventReminderInput">
+    </div>
     <div class="modal-actions">
       <button class="btn btn-danger-ghost" id="eventDeleteBtn" style="display:none;">Видалити</button>
       <button class="btn btn-primary" id="eventSaveBtn">Зберегти</button>
     </div>
+  </div>
+</div>
+
+<!-- DAY MODAL (список подій дня + додавання нової) -->
+<div class="modal-overlay" id="dayModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="dayModalTitle">День</h3>
+      <button class="modal-close" id="dayModalClose"><svg class="icon icon-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+    <div class="day-modal-list" id="dayModalList"></div>
+    <div id="dayModalEmptyWrap"></div>
+    <button class="btn btn-primary" id="dayModalAddBtn" style="width:100%;margin-top:16px;">
+      <svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      Нова подія
+    </button>
   </div>
 </div>
 
@@ -299,14 +356,24 @@
       <div class="meta-row">
         <div class="field">
           <label>Категорія</label>
-          <div class="category-combo" id="categoryCombo">
-            <input type="text" id="glossaryCategoryInput" placeholder="Наприклад, Розробка" autocomplete="off">
-            <button type="button" class="category-combo-toggle" id="categoryComboToggle" tabindex="-1" aria-label="Показати список категорій">
-              <svg class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+          <div class="event-type-row">
+            <div class="category-combo" id="categoryCombo">
+              <input type="text" id="glossaryCategoryInput" placeholder="Наприклад, Розробка" autocomplete="off">
+              <button type="button" class="category-combo-toggle" id="categoryComboToggle" tabindex="-1" aria-label="Показати список категорій">
+                <svg class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
+              <ul class="category-suggest" id="categorySuggestList"></ul>
+            </div>
+            <button type="button" class="type-color-dot" id="categoryColorDot" title="Обрати колір категорії">
+              <svg class="icon" viewBox="0 0 24 24">
+                <path d="M12 3a9 9 0 1 0 0 18c1 0 1.8-.8 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.4-.7-.4-1.1 0-1 .8-1.8 1.8-1.8h1.9C19.6 15.1 21 13.2 21 11c0-4.4-4-8-9-8Z"/>
+                <circle cx="7.3" cy="10.3" r=".9"/><circle cx="10" cy="6.8" r=".9"/><circle cx="14.7" cy="6.8" r=".9"/><circle cx="17.3" cy="10.3" r=".9"/>
+              </svg>
             </button>
-            <ul class="category-suggest" id="categorySuggestList"></ul>
           </div>
-          <div class="swatches" id="categoryColorSwatches" style="margin-top:10px;"></div>
+          <div class="swatches-collapse" id="categoryColorSwatchesWrap">
+            <div class="swatches color-picker-swatches" id="categoryColorSwatches"></div>
+          </div>
         </div>
         <div class="field">
           <label>Пріоритет</label>
