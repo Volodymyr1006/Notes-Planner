@@ -1,10 +1,6 @@
 /* ============================================================
    STATE (in-memory only — дані не зберігаються між перезавантаженнями)
    ============================================================ */
-const COLORS = [
-  {id:'violet', v:'#8b6bff'}, {id:'teal', v:'#4fd1c5'}, {id:'amber', v:'#e8b34f'},
-  {id:'rose', v:'#e88ba3'}, {id:'slate', v:'#8b93a8'},
-];
 const pad = n => String(n).padStart(2,'0');
 const todayDate = new Date();
 const todayStr = `${todayDate.getFullYear()}-${pad(todayDate.getMonth()+1)}-${pad(todayDate.getDate())}`;
@@ -74,6 +70,7 @@ const PRIORITY = [
   {id:'high', label:'Високий', color:'#ef6b6b'},
 ];
 function priorityInfo(id){ return PRIORITY.find(p=>p.id===id) || PRIORITY[1]; }
+function eventTimeRange(e){ return e.time && e.endTime ? `${e.time}–${e.endTime}` : (e.time||''); }
 function stripHtml(html){ const d=document.createElement('div'); d.innerHTML=html||''; return d.textContent||''; }
 
 let glossaryIdCounter = 8;
@@ -106,6 +103,23 @@ function categoryColor(name){
   let h = 0;
   for(let i=0;i<name.length;i++) h = (h*31 + name.charCodeAt(i)) >>> 0;
   return CATEGORY_COLORS[h % CATEGORY_COLORS.length];
+}
+
+/* ---- типи подій календаря: користувач сам вписує назву (як категорії
+   глосарія), а популярні типи пропонуються підказкою ---- */
+const DEFAULT_EVENT_TYPES = ['Робота','Навчання','Особисте','Спорт','Інше'];
+let eventTypeColors = {
+  'Робота':'#8b6bff','Особисте':'#4fd1c5','Навчання':'#e8b34f','Спорт':'#e88ba3','Інше':'#8b93a8',
+};
+function eventTypeColor(name){
+  if(eventTypeColors[name]) return eventTypeColors[name];
+  let h = 0;
+  for(let i=0;i<name.length;i++) h = (h*31 + name.charCodeAt(i)) >>> 0;
+  return CATEGORY_COLORS[h % CATEGORY_COLORS.length];
+}
+function eventTypeNames(){
+  const used = [...new Set(Object.values(events).flat().map(e=>e.type).filter(Boolean))];
+  return [...new Set([...DEFAULT_EVENT_TYPES, ...used])];
 }
 
 /* ---- захист від небезпечного HTML у "Поясненні" глосарія ----
@@ -167,6 +181,7 @@ function loadState(){
     glossary = (s.glossary ?? glossary).map(t => ({...t, explanationHtml: sanitizeExplanationHtml(t.explanationHtml)}));
     glossaryIdCounter = s.glossaryIdCounter ?? glossaryIdCounter;
     categoryColors = s.categoryColors ?? categoryColors;
+    eventTypeColors = s.eventTypeColors ?? eventTypeColors;
   }catch(e){
     console.warn('Не вдалося прочитати збережені дані, використовую демо-дані.', e);
   }
@@ -176,7 +191,7 @@ function saveState(){
   localStorage.setItem(STORAGE_KEY, JSON.stringify({
     lists, listIdCounter, itemIdCounter, activeListId,
     events, eventIdCounter, profile, prefs,
-    glossary, glossaryIdCounter, categoryColors,
+    glossary, glossaryIdCounter, categoryColors, eventTypeColors,
   }));
 }
 loadState();
@@ -448,7 +463,10 @@ function addItem(text){
   wireCheckItemRow(checkList.lastElementChild);
   updateNotesAggregates(list);
 }
-document.getElementById('quickAddBtn').addEventListener('click', ()=>addItem(quickAddInput.value));
+document.getElementById('quickAddBtn').addEventListener('click', ()=>{
+  if(quickAddInput.value.trim()) addItem(quickAddInput.value);
+  else quickAddInput.focus();
+});
 quickAddInput.addEventListener('keydown', e=>{ if(e.key==='Enter') addItem(quickAddInput.value); });
 document.getElementById('clearDoneBtn').addEventListener('click', ()=>{
   const list = activeList(); if(!list) return;
@@ -679,16 +697,31 @@ function renderPriorityPicker(){
   });
 }
 
-/* ---- колір категорії: користувач може обрати вручну зі свотчів ---- */
+/* ---- колір категорії: користувач може обрати вручну зі свотчів (сховані за іконкою-палітрою) ---- */
 const categoryColorSwatches = document.getElementById('categoryColorSwatches');
+const categoryColorDot = document.getElementById('categoryColorDot');
+const categoryColorSwatchesWrap = document.getElementById('categoryColorSwatchesWrap');
 let selectedCategoryColor = CATEGORY_COLORS[0];
 function renderCategoryColorSwatches(){
   categoryColorSwatches.innerHTML = CATEGORY_COLORS.map(c=>`
     <button type="button" class="swatch-btn ${selectedCategoryColor===c?'selected':''}" data-c="${c}" style="background:${c}"></button>`).join('');
   categoryColorSwatches.querySelectorAll('.swatch-btn').forEach(b=>{
-    b.addEventListener('click', ()=>{ selectedCategoryColor = b.dataset.c; renderCategoryColorSwatches(); });
+    b.addEventListener('click', ()=>{
+      selectedCategoryColor = b.dataset.c;
+      renderCategoryColorSwatches();
+      setTimeout(closeCategorySwatches, 150);
+    });
   });
+  categoryColorDot.style.setProperty('--dot-color', selectedCategoryColor);
 }
+function closeCategorySwatches(){
+  categoryColorDot.classList.remove('open');
+  categoryColorSwatchesWrap.classList.remove('open');
+}
+categoryColorDot.addEventListener('click', ()=>{
+  const isOpen = categoryColorSwatchesWrap.classList.toggle('open');
+  categoryColorDot.classList.toggle('open', isOpen);
+});
 function syncCategoryColorToInput(){
   // міняємо колір автоматично тільки якщо введена назва точно збігається
   // з уже існуючою категорією — інакше колір "стрибав" би на кожну літеру
@@ -730,9 +763,12 @@ glossaryCategoryInput.addEventListener('input', renderCategorySuggestions);
 document.addEventListener('click', (e)=>{
   if(!categoryCombo.contains(e.target)) closeCategoryCombo();
   if(!sortCombo.contains(e.target)) closeSortCombo();
+  if(!eventTypeCombo.contains(e.target)) closeEventTypeCombo();
+  if(!eventTypeColorDot.contains(e.target) && !eventTypeSwatchesWrap.contains(e.target)) closeEventTypeSwatches();
+  if(!categoryColorDot.contains(e.target) && !categoryColorSwatchesWrap.contains(e.target)) closeCategorySwatches();
 });
 document.addEventListener('keydown', (e)=>{
-  if(e.key==='Escape'){ closeCategoryCombo(); closeSortCombo(); }
+  if(e.key==='Escape'){ closeCategoryCombo(); closeSortCombo(); closeEventTypeCombo(); closeEventTypeSwatches(); closeCategorySwatches(); }
 });
 
 function openGlossaryModal(id=null){
@@ -746,6 +782,7 @@ function openGlossaryModal(id=null){
   renderImgGallery();
   glossaryCategoryInput.value = t?.category || '';
   closeCategoryCombo();
+  closeCategorySwatches();
   selectedCategoryColor = t?.category ? categoryColor(t.category) : CATEGORY_COLORS[0];
   renderCategoryColorSwatches();
   selectedPriority = t?.priority || 'medium';
@@ -1170,8 +1207,8 @@ function renderOverview(){
   const agendaMini = document.getElementById('agendaMini');
   const todays = events[todayStr]||[];
   agendaMini.innerHTML = todays.length ? todays.slice().sort((a,b)=>(a.time||'').localeCompare(b.time||'')).map(e=>{
-    const col = COLORS.find(c=>c.id===e.color)?.v || COLORS[0].v;
-    return `<div class="agenda-mini-row" style="--pill-line:${col}"><span class="t">${e.time||'—'}</span><span class="n">${esc(e.title)}</span></div>`;
+    const col = eventTypeColor(e.type||'Інше');
+    return `<div class="agenda-mini-row" style="--pill-line:${col}"><span class="t">${eventTimeRange(e)||'—'}</span><span class="n">${esc(e.title)}</span></div>`;
   }).join('') : `<div class="dash-empty">На сьогодні планів немає. Загляни в календар, щоб додати.</div>`;
 
   const listsProgress = document.getElementById('listsProgress');
@@ -1204,37 +1241,56 @@ function renderCalendar(){
   calTitle.textContent = `${MONTH_NAMES[calMonth]} ${calYear}`;
   const total = daysInMonth(calYear, calMonth);
   const startOffset = firstWeekdayMon(calYear, calMonth);
-  const prevTotal = daysInMonth(calMonth===0?calYear-1:calYear, calMonth===0?11:calMonth-1);
+  // клітинки сусідніх місяців лишаємо порожніми (null) — їхні числа належать
+  // власним календарям, тут вони тільки заповнювали б тиждень
   const cells = [];
-  for(let i=startOffset-1;i>=0;i--) cells.push({d:prevTotal-i, other:true, m:calMonth-1});
-  for(let d=1; d<=total; d++) cells.push({d, other:false, m:calMonth});
-  let nextDay = 1;
-  while(cells.length < 42) cells.push({d:nextDay++, other:true, m:calMonth+1});
+  for(let i=0;i<startOffset;i++) cells.push(null);
+  for(let d=1; d<=total; d++) cells.push({d, m:calMonth, y:calYear});
+  while(cells.length % 7 !== 0) cells.push(null);
 
-  calendarGrid.innerHTML = cells.map(c=>{
-    let y=calYear, m=calMonth;
-    if(c.other){ if(c.m<0){m=11;y=calYear-1;} else if(c.m>11){m=0;y=calYear+1;} else m=c.m; }
-    const key = fmtDate(y,m,c.d);
-    const evs = events[key]||[];
-    const isToday = key===todayStr;
-    const shown = evs.slice(0,3);
-    const more = evs.length-shown.length;
-    return `<div class="day-cell ${c.other?'other-month':''} ${isToday?'is-today':''}" data-key="${key}">
-      <span class="day-num">${c.d}</span>
-      <div class="day-events">
-        ${shown.map(e=>{
-          const col = COLORS.find(cc=>cc.id===e.color)?.v || COLORS[0].v;
-          return `<div class="ev-pill" data-pill-of="${key}" style="--pill-color:${hexAlpha(col,.18)};--pill-line:${col}">${e.time?e.time+' ':''}${esc(e.title)}</div>`;
-        }).join('')}
-        ${more>0?`<div class="ev-more">+${more} ще</div>`:''}
-      </div>
-    </div>`;
+  const weeks = [];
+  for(let i=0;i<cells.length;i+=7) weeks.push(cells.slice(i,i+7));
+
+  calendarGrid.innerHTML = weeks.map(week=>{
+    const hasEv = week.map(c => c ? ((events[fmtDate(c.y,c.m,c.d)]||[]).length>0) : false);
+    return `<div class="cal-row">${week.map((c,i)=>{
+      if(!c) return `<div class="day-cell day-cell-empty"></div>`;
+      const key = fmtDate(c.y,c.m,c.d);
+      const evs = events[key]||[];
+      const isToday = key===todayStr;
+      const shown = evs.slice(0,3);
+      const more = evs.length-shown.length;
+
+      // "живіша" сітка: клітинка з подіями підростає, якщо сусід(и) в
+      // тому самому тижні порожні; порожня клітинка відповідно трохи
+      // звужується, звільняючи місце — але лишається повністю клікабельною
+      let growClass = '';
+      if(hasEv[i]){
+        const emptyNeighbors = (i>0 && !hasEv[i-1] ? 1:0) + (i<6 && !hasEv[i+1] ? 1:0);
+        growClass = emptyNeighbors===2 ? 'grow-2' : emptyNeighbors===1 ? 'grow-1' : '';
+      } else {
+        const fullNeighbors = (i>0 && hasEv[i-1] ? 1:0) + (i<6 && hasEv[i+1] ? 1:0);
+        growClass = fullNeighbors===2 ? 'shrink-2' : fullNeighbors===1 ? 'shrink-1' : '';
+      }
+
+      return `<div class="day-cell ${isToday?'is-today':''} ${growClass}" data-key="${key}">
+        <span class="day-num">${c.d}</span>
+        <div class="day-events">
+          ${shown.map(e=>{
+            const col = eventTypeColor(e.type||'Інше');
+            const range = eventTimeRange(e);
+            return `<div class="ev-pill" data-pill-of="${key}" style="--pill-color:${hexAlpha(col,.18)};--pill-line:${col}">${range?`<span class="ev-pill-time">${range}</span> `:''}${esc(e.title)}</div>`;
+          }).join('')}
+          ${more>0?`<div class="ev-more">+${more} ще</div>`:''}
+        </div>
+      </div>`;
+    }).join('')}</div>`;
   }).join('');
 
-  calendarGrid.querySelectorAll('.day-cell').forEach(cell=>{
+  calendarGrid.querySelectorAll('.day-cell:not(.day-cell-empty)').forEach(cell=>{
     cell.addEventListener('click', (e)=>{
       if(e.target.closest('.ev-pill')) return;
-      openEventModal(cell.dataset.key);
+      openDayModal(cell.dataset.key);
     });
   });
   bindPillClicks(calendarGrid);
@@ -1265,8 +1321,12 @@ function renderAgenda(){
       <div class="agenda-date"><div class="d">${d}</div><div class="w">${wd}</div></div>
       <div class="agenda-events">
         ${evs.length? evs.map(e=>{
-          const col = COLORS.find(cc=>cc.id===e.color)?.v || COLORS[0].v;
-          return `<div class="ev-pill" style="--pill-color:${hexAlpha(col,.18)};--pill-line:${col}">${e.time?e.time+' ':''}${esc(e.title)}</div>`;
+          const col = eventTypeColor(e.type||'Інше');
+          const range = eventTimeRange(e);
+          return `<div class="ev-pill agenda-ev" style="--pill-color:${hexAlpha(col,.18)};--pill-line:${col}">
+            <div class="ev-pill-main">${range?`<span class="ev-pill-time">${range}</span>`:''}<span class="ev-pill-title">${esc(e.title)}</span></div>
+            ${e.location?`<div class="ev-pill-loc"><svg class="icon" viewBox="0 0 24 24"><path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.3"/></svg>${esc(e.location)}</div>`:''}
+          </div>`;
         }).join('') : '<span class="agenda-empty">Немає планів</span>'}
       </div>
       <div class="agenda-add"><svg class="icon" style="width:14px;height:14px" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
@@ -1276,11 +1336,55 @@ function renderAgenda(){
   calendarAgenda.querySelectorAll('.agenda-row').forEach(row=>{
     row.addEventListener('click',(e)=>{
       if(e.target.closest('.ev-pill')) return;
-      openEventModal(row.dataset.key);
+      openDayModal(row.dataset.key);
     });
   });
   bindPillClicks(calendarAgenda);
 }
+
+/* ---- модалка дня: список уже створених подій + кнопка додати нову ---- */
+const dayModal = document.getElementById('dayModal');
+const dayModalList = document.getElementById('dayModalList');
+const dayModalEmptyWrap = document.getElementById('dayModalEmptyWrap');
+let dayModalKey = null;
+function openDayModal(key){
+  dayModalKey = key;
+  const d = new Date(key+'T00:00:00');
+  document.getElementById('dayModalTitle').textContent = new Intl.DateTimeFormat('uk-UA',{day:'numeric',month:'long'}).format(d);
+  renderDayModalList();
+  openModal(dayModal);
+}
+function renderDayModalList(){
+  const evs = (events[dayModalKey]||[]).slice().sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+  if(evs.length===0){
+    dayModalList.innerHTML='';
+    dayModalEmptyWrap.innerHTML = emptyStateHtml('На цей день ще нічого не заплановано', 'Натисни «Нова подія» нижче, щоб додати перший план.');
+  } else {
+    dayModalEmptyWrap.innerHTML='';
+    dayModalList.innerHTML = evs.map(e=>{
+      const col = eventTypeColor(e.type||'Інше');
+      const range = eventTimeRange(e);
+      return `<div class="day-modal-ev" data-id="${e.id}" style="--pill-line:${col}">
+        <div class="dme-time">${range||'—'}</div>
+        <div class="dme-main">
+          <div class="dme-title">${esc(e.title)}</div>
+          ${e.location?`<div class="dme-loc"><svg class="icon" viewBox="0 0 24 24"><path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.3"/></svg>${esc(e.location)}</div>`:''}
+        </div>
+      </div>`;
+    }).join('');
+    dayModalList.querySelectorAll('.day-modal-ev').forEach(row=>{
+      row.addEventListener('click', ()=>{
+        closeModal(dayModal);
+        openEventModal(dayModalKey, Number(row.dataset.id));
+      });
+    });
+  }
+}
+document.getElementById('dayModalAddBtn').addEventListener('click', ()=>{
+  closeModal(dayModal);
+  openEventModal(dayModalKey);
+});
+document.getElementById('dayModalClose').addEventListener('click', ()=>closeModal(dayModal));
 document.getElementById('calPrev').addEventListener('click', ()=>{ calMonth--; if(calMonth<0){calMonth=11;calYear--;} renderCalendar(); });
 document.getElementById('calNext').addEventListener('click', ()=>{ calMonth++; if(calMonth>11){calMonth=0;calYear++;} renderCalendar(); });
 document.getElementById('calToday').addEventListener('click', ()=>{ calYear=CY; calMonth=CM; renderCalendar(); showToast('Перейшли до сьогодні'); });
@@ -1289,12 +1393,118 @@ const eventModal = document.getElementById('eventModal');
 const eventTitleInput = document.getElementById('eventTitleInput');
 const eventDateInput = document.getElementById('eventDateInput');
 const eventTimeInput = document.getElementById('eventTimeInput');
-const eventSwatches = document.getElementById('eventSwatches');
+const eventEndTimeInput = document.getElementById('eventEndTimeInput');
+const eventLocationInput = document.getElementById('eventLocationInput');
+const eventNoteInput = document.getElementById('eventNoteInput');
+const eventReminderInput = document.getElementById('eventReminderInput');
+const eventTypeInput = document.getElementById('eventTypeInput');
+const eventTypeCombo = document.getElementById('eventTypeCombo');
+const eventTypeComboToggle = document.getElementById('eventTypeComboToggle');
+const eventTypeSuggestList = document.getElementById('eventTypeSuggestList');
+const eventTypeColorSwatches = document.getElementById('eventTypeColorSwatches');
+const eventTypeColorDot = document.getElementById('eventTypeColorDot');
+const eventTypeSwatchesWrap = document.getElementById('eventTypeSwatchesWrap');
 const eventDeleteBtn = document.getElementById('eventDeleteBtn');
-let selectedEventColor='violet';
-eventSwatches.innerHTML = COLORS.map(c=>`<button type="button" class="swatch-btn" data-c="${c.id}" style="background:${c.v}"></button>`).join('');
-eventSwatches.querySelectorAll('.swatch-btn').forEach(b=>b.addEventListener('click', ()=>{ selectedEventColor=b.dataset.c; updateEventSwatchUI(); }));
-function updateEventSwatchUI(){ eventSwatches.querySelectorAll('.swatch-btn').forEach(b=>b.classList.toggle('selected', b.dataset.c===selectedEventColor)); }
+let selectedEventTypeColor = CATEGORY_COLORS[0];
+
+/* ---- степер часу: стрілки ±5 хв, або можна вписати точний час вручну ---- */
+function parseTimeInput(raw){
+  const s = raw.trim();
+  if(!s) return null;
+  let h, m;
+  if(s.includes(':')){
+    const [hs, ms] = s.split(':');
+    h = parseInt(hs,10); m = parseInt(ms,10);
+  } else if(/^\d{3,4}$/.test(s)){
+    const digits = s.padStart(4,'0');
+    h = parseInt(digits.slice(0,2),10); m = parseInt(digits.slice(2),10);
+  } else if(/^\d{1,2}$/.test(s)){
+    h = parseInt(s,10); m = 0;
+  } else return null;
+  if(isNaN(h)||isNaN(m)||h<0||h>23||m<0||m>59) return null;
+  return h*60+m;
+}
+function formatMinutes(total){
+  total = ((total%1440)+1440)%1440;
+  const h = Math.floor(total/60), m = total%60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+function wireTimeStepper(input){
+  const wrap = input.closest('.time-stepper');
+  wrap.querySelectorAll('.time-stepper-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const dir = Number(btn.dataset.dir);
+      const current = parseTimeInput(input.value);
+      input.value = formatMinutes((current===null ? -dir*5 : current) + dir*5);
+    });
+  });
+  input.addEventListener('blur', ()=>{
+    const mins = parseTimeInput(input.value);
+    input.value = mins===null ? '' : formatMinutes(mins);
+  });
+  input.addEventListener('keydown', (e)=>{
+    if(e.key==='Enter') input.blur();
+  });
+}
+wireTimeStepper(eventTimeInput);
+wireTimeStepper(eventEndTimeInput);
+
+function renderEventTypeColorSwatches(){
+  eventTypeColorSwatches.innerHTML = CATEGORY_COLORS.map(c=>`
+    <button type="button" class="swatch-btn ${selectedEventTypeColor===c?'selected':''}" data-c="${c}" style="background:${c}"></button>`).join('');
+  eventTypeColorSwatches.querySelectorAll('.swatch-btn').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      selectedEventTypeColor = b.dataset.c;
+      renderEventTypeColorSwatches();
+      setTimeout(closeEventTypeSwatches, 150);
+    });
+  });
+  eventTypeColorDot.style.setProperty('--dot-color', selectedEventTypeColor);
+}
+function closeEventTypeSwatches(){
+  eventTypeColorDot.classList.remove('open');
+  eventTypeSwatchesWrap.classList.remove('open');
+}
+eventTypeColorDot.addEventListener('click', ()=>{
+  const isOpen = eventTypeSwatchesWrap.classList.toggle('open');
+  eventTypeColorDot.classList.toggle('open', isOpen);
+});
+function syncEventTypeColorToInput(){
+  // міняємо колір автоматично тільки якщо введена назва точно збігається
+  // з уже існуючим типом — інакше колір "стрибав" би на кожну літеру
+  const t = eventTypeInput.value.trim();
+  if(t && eventTypeNames().includes(t)){
+    selectedEventTypeColor = eventTypeColor(t);
+    renderEventTypeColorSwatches();
+  }
+}
+eventTypeInput.addEventListener('input', syncEventTypeColorToInput);
+
+/* ---- власний випадаючий список типів подій (той самий підхід, що й categoryCombo) ---- */
+function openEventTypeCombo(){ eventTypeCombo.classList.add('open'); renderEventTypeSuggestions(); }
+function closeEventTypeCombo(){ eventTypeCombo.classList.remove('open'); }
+function renderEventTypeSuggestions(){
+  const q = eventTypeInput.value.trim().toLowerCase();
+  const matches = eventTypeNames().filter(t => t.toLowerCase().includes(q));
+  eventTypeSuggestList.innerHTML = matches.length
+    ? matches.map(t => {
+        const col = eventTypeColor(t);
+        return `<li data-type="${esc(t)}"><span class="category-pill" style="background:${hexAlpha(col,.16)};color:${col}"><span class="dot" style="background:${col}"></span>${esc(t)}</span></li>`;
+      }).join('')
+    : `<li class="empty">Немає збережених типів</li>`;
+  eventTypeSuggestList.querySelectorAll('li[data-type]').forEach(li=>{
+    li.addEventListener('click', ()=>{
+      eventTypeInput.value = li.dataset.type;
+      syncEventTypeColorToInput();
+      closeEventTypeCombo();
+    });
+  });
+}
+eventTypeComboToggle.addEventListener('click', ()=>{
+  eventTypeCombo.classList.contains('open') ? closeEventTypeCombo() : openEventTypeCombo();
+});
+eventTypeInput.addEventListener('focus', openEventTypeCombo);
+eventTypeInput.addEventListener('input', renderEventTypeSuggestions);
 
 function openEventModal(key, eventId=null){
   editingEventKey=key; editingEventId=eventId;
@@ -1304,8 +1514,15 @@ function openEventModal(key, eventId=null){
   eventTitleInput.value = ev?.title||'';
   eventDateInput.value = key;
   eventTimeInput.value = ev?.time||'';
-  selectedEventColor = ev?.color||'violet';
-  updateEventSwatchUI();
+  eventEndTimeInput.value = ev?.endTime||'';
+  eventLocationInput.value = ev?.location||'';
+  eventNoteInput.value = ev?.note||'';
+  eventReminderInput.value = ev?.reminderAt||'';
+  eventTypeInput.value = ev?.type || '';
+  closeEventTypeCombo();
+  closeEventTypeSwatches();
+  selectedEventTypeColor = eventTypeColor(eventTypeInput.value || 'Інше');
+  renderEventTypeColorSwatches();
   eventDeleteBtn.style.display = ev?'block':'none';
   openModal(eventModal);
   setTimeout(()=>eventTitleInput.focus(),300);
@@ -1314,16 +1531,27 @@ document.getElementById('eventSaveBtn').addEventListener('click', ()=>{
   const title = eventTitleInput.value.trim();
   if(!title){ eventTitleInput.focus(); return; }
   const key = eventDateInput.value || editingEventKey;
+  const type = eventTypeInput.value.trim() || 'Інше';
+  eventTypeColors[type] = selectedEventTypeColor;
+  const fields = {
+    title,
+    time: eventTimeInput.value,
+    endTime: eventEndTimeInput.value,
+    type,
+    location: eventLocationInput.value.trim(),
+    note: eventNoteInput.value.trim(),
+    reminderAt: eventReminderInput.value,
+  };
   if(editingEventId){
     const list = events[editingEventKey]||[];
     const ev = list.find(e=>e.id===editingEventId);
     if(key!==editingEventKey){
       events[editingEventKey] = list.filter(e=>e.id!==editingEventId);
-      ev.title=title; ev.time=eventTimeInput.value; ev.color=selectedEventColor;
+      Object.assign(ev, fields);
       (events[key]||=[]).push(ev);
-    } else { ev.title=title; ev.time=eventTimeInput.value; ev.color=selectedEventColor; }
+    } else { Object.assign(ev, fields); }
   } else {
-    (events[key]||=[]).push({id:eventIdCounter++, title, time:eventTimeInput.value, color:selectedEventColor});
+    (events[key]||=[]).push({id:eventIdCounter++, ...fields});
   }
   saveState();
   closeModal(eventModal); renderCalendar(); if(document.getElementById('view-overview').classList.contains('active')) renderOverview(); showToast('План збережено');
