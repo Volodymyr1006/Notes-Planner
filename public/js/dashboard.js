@@ -12,6 +12,30 @@ const fmtDate = (y,m,d) => `${y}-${pad(m+1)}-${pad(d)}`;
 const esc = s => { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; };
 const hexAlpha = (hex,a) => { const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16); return `rgba(${r},${g},${b},${a})`; };
 
+/* плавно "згортає" й прибирає один рядок картки/списку, замість того щоб
+   перемальовувати весь список наново (без цього видалення відчувалось як
+   перезавантаження сторінки — все зникало і з'являлось заново) */
+function collapseAndRemove(row, onDone){
+  const h = row.offsetHeight;
+  row.style.maxHeight = h + 'px';
+  row.style.overflow = 'hidden';
+  void row.offsetHeight;
+  row.style.transition = 'opacity .22s var(--ease), transform .22s var(--ease), max-height .3s var(--ease), margin .3s var(--ease), padding .3s var(--ease)';
+  requestAnimationFrame(()=>{
+    row.style.opacity = '0';
+    row.style.transform = 'translateX(10px)';
+    row.style.maxHeight = '0px';
+    row.style.marginTop = '0px'; row.style.marginBottom = '0px';
+    row.style.paddingTop = '0px'; row.style.paddingBottom = '0px';
+  });
+  row.addEventListener('transitionend', function handler(e){
+    if(e.propertyName !== 'max-height') return;
+    row.removeEventListener('transitionend', handler);
+    row.remove();
+    if(onDone) onDone();
+  });
+}
+
 let listIdCounter = 4, itemIdCounter = 100;
 let lists = [
   {id:1, name:'Цей тиждень', items:[
@@ -54,16 +78,17 @@ function stripHtml(html){ const d=document.createElement('div'); d.innerHTML=htm
 
 let glossaryIdCounter = 8;
 let glossary = [
-  {id:1, term:'API', explanationHtml:"<strong>Application Programming Interface</strong> — набір правил, за якими одна програма може звертатись до функцій чи даних іншої.", category:'Розробка', priority:'high'},
-  {id:2, term:'Webhook', explanationHtml:'Спосіб, яким сервіс сам надсилає дані іншому сервісу одразу після певної події, без постійних запитів.', category:'Розробка', priority:'medium'},
-  {id:3, term:'MVP', explanationHtml:'<mark class="term-mark">Minimum Viable Product</mark> — мінімальна робоча версія продукту, щоб перевірити гіпотезу на реальних користувачах.', category:'Продукт', priority:'high'},
-  {id:4, term:'UI/UX', explanationHtml:'UI — як інтерфейс <u>виглядає</u>. UX — як зручно ним користуватись. Разом визначають, наскільки приємно працювати з продуктом.', category:'Продукт', priority:'medium'},
-  {id:5, term:'Інтервальне повторення', explanationHtml:'Техніка запам\'ятовування, коли матеріал повторюють через поступово зростаючі проміжки часу.', category:'Навчання', priority:'low'},
-  {id:6, term:'Активне пригадування', explanationHtml:'Замість перечитування — спроба самостійно відтворити інформацію з пам\'яті. Працює краще за пасивне читання.', category:'Навчання', priority:'medium'},
+  {id:1, term:'API', explanationHtml:"<strong>Application Programming Interface</strong> — набір правил, за якими одна програма може звертатись до функцій чи даних іншої.", category:'Розробка', priority:'high', learned:false},
+  {id:2, term:'Webhook', explanationHtml:'Спосіб, яким сервіс сам надсилає дані іншому сервісу одразу після певної події, без постійних запитів.', category:'Розробка', priority:'medium', learned:false},
+  {id:3, term:'MVP', explanationHtml:'<mark class="term-mark">Minimum Viable Product</mark> — мінімальна робоча версія продукту, щоб перевірити гіпотезу на реальних користувачах.', category:'Продукт', priority:'high', learned:false},
+  {id:4, term:'UI/UX', explanationHtml:'UI — як інтерфейс <u>виглядає</u>. UX — як зручно ним користуватись. Разом визначають, наскільки приємно працювати з продуктом.', category:'Продукт', priority:'medium', learned:false},
+  {id:5, term:'Інтервальне повторення', explanationHtml:'Техніка запам\'ятовування, коли матеріал повторюють через поступово зростаючі проміжки часу.', category:'Навчання', priority:'low', learned:false},
+  {id:6, term:'Активне пригадування', explanationHtml:'Замість перечитування — спроба самостійно відтворити інформацію з пам\'яті. Працює краще за пасивне читання.', category:'Навчання', priority:'medium', learned:false},
 ];
 let glossarySearchQuery = '';
 let glossaryFilterCategory = 'all';
 let glossarySortOrder = 'default';
+let glossaryStatusFilter = 'all';
 let glossaryViewMode = 'all';
 let editingGlossaryId = null;
 let selectedPriority = 'medium';
@@ -348,23 +373,38 @@ function renderNotes(){
     notesFooterRow.style.display='none';
   } else {
     notesEmptyWrap.innerHTML='';
-    checkList.innerHTML = list.items.map(i=>`
-      <div class="check-item ${i.done?'done':''}" data-item="${i.id}">
-        <span class="check-box" data-toggle="${i.id}"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>
-        <span class="txt" data-toggle="${i.id}">${esc(i.text)}</span>
-        <button class="del" data-del="${i.id}"><svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13"/></svg></button>
-      </div>`).join('');
-    checkList.querySelectorAll('[data-toggle]').forEach(el=>{
-      el.addEventListener('click', ()=>toggleItem(Number(el.dataset.toggle)));
-    });
-    checkList.querySelectorAll('[data-del]').forEach(el=>{
-      el.addEventListener('click', (e)=>{ e.stopPropagation(); deleteItem(Number(el.dataset.del)); });
-    });
+    checkList.innerHTML = list.items.map(checkItemHtml).join('');
+    checkList.querySelectorAll('.check-item').forEach(wireCheckItemRow);
     notesFooterRow.style.display = 'flex';
     notesCountText.textContent = `${total} пункт${total===1?'':total<5?'и':'ів'}`;
     document.getElementById('clearDoneBtn').style.visibility = done>0 ? 'visible' : 'hidden';
   }
   renderListsSidebar();
+}
+function checkItemHtml(i){
+  return `<div class="check-item ${i.done?'done':''}" data-item="${i.id}">
+    <span class="check-box" data-toggle="${i.id}"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>
+    <span class="txt" data-toggle="${i.id}">${esc(i.text)}</span>
+    <button class="del" data-del="${i.id}"><svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13"/></svg></button>
+  </div>`;
+}
+function wireCheckItemRow(row){
+  row.querySelectorAll('[data-toggle]').forEach(el=>{
+    el.addEventListener('click', ()=>toggleItem(Number(el.dataset.toggle)));
+  });
+  row.querySelectorAll('[data-del]').forEach(el=>{
+    el.addEventListener('click', (e)=>{ e.stopPropagation(); deleteItem(Number(el.dataset.del)); });
+  });
+}
+function updateNotesAggregates(list){
+  const total = list.items.length;
+  const done = list.items.filter(i=>i.done).length;
+  notesListSub.textContent = `${done} з ${total} виконано`;
+  notesProgressFill.style.width = total ? `${Math.round(done/total*100)}%` : '0%';
+  notesCountText.textContent = `${total} пункт${total===1?'':total<5?'и':'ів'}`;
+  document.getElementById('clearDoneBtn').style.visibility = done>0 ? 'visible' : 'hidden';
+  const sideCount = listsScroll.querySelector(`.list-item[data-list="${list.id}"] .count`);
+  if(sideCount) sideCount.textContent = `${done}/${total}`;
 }
 function emptyStateHtml(title, sub){
   return `<div class="empty-state">
@@ -376,22 +416,37 @@ function toggleItem(id){
   const item = list.items.find(i=>i.id===id); if(!item) return;
   item.done = !item.done;
   saveState();
-  renderNotes();
+  const row = checkList.querySelector(`.check-item[data-item="${id}"]`);
+  if(row) row.classList.toggle('done', item.done);
+  updateNotesAggregates(list);
 }
 function deleteItem(id){
   const list = activeList(); if(!list) return;
+  const row = checkList.querySelector(`.check-item[data-item="${id}"]`);
   list.items = list.items.filter(i=>i.id!==id);
   saveState();
-  renderNotes();
   showToast('Пункт видалено');
+  if(row && list.items.length>0){
+    collapseAndRemove(row, ()=>updateNotesAggregates(list));
+  } else {
+    renderNotes();
+  }
 }
 function addItem(text){
   const list = activeList(); if(!list) return;
   text = text.trim(); if(!text) return;
-  list.items.push({id:itemIdCounter++, text, done:false});
+  const wasEmpty = list.items.length===0;
+  const item = {id:itemIdCounter++, text, done:false};
+  list.items.push(item);
   quickAddInput.value='';
   saveState();
-  renderNotes();
+  if(wasEmpty){
+    renderNotes();
+    return;
+  }
+  checkList.insertAdjacentHTML('beforeend', checkItemHtml(item));
+  wireCheckItemRow(checkList.lastElementChild);
+  updateNotesAggregates(list);
 }
 document.getElementById('quickAddBtn').addEventListener('click', ()=>addItem(quickAddInput.value));
 quickAddInput.addEventListener('keydown', e=>{ if(e.key==='Enter') addItem(quickAddInput.value); });
@@ -425,6 +480,7 @@ function glossaryCategories(){ return [...new Set(glossary.map(t=>t.category).fi
 function filteredGlossary(){
   const result = glossary.filter(t=>{
     if(glossaryFilterCategory!=='all' && t.category!==glossaryFilterCategory) return false;
+    if(glossaryStatusFilter==='unlearned' && t.learned) return false;
     if(glossarySearchQuery){
       const q = glossarySearchQuery;
       const plain = (t.term + ' ' + stripHtml(t.explanationHtml)).toLowerCase();
@@ -440,12 +496,22 @@ function filteredGlossary(){
 function renderGlossaryFilters(){
   const cats = glossaryCategories();
   const chips = [{id:'all', label:'Всі категорії'}, ...cats.map(c=>({id:c, label:c, color:categoryColor(c)}))];
-  glossaryFilters.innerHTML = chips.map(c=>`
-    <button class="chip ${glossaryFilterCategory===c.id?'active':''}" data-filter="${esc(c.id)}">
+  glossaryFilters.innerHTML = `
+    <button class="chip" data-filter="all">Всі категорії</button>
+    <button class="chip" id="unlearnedFilterChip">Тільки невивчені</button>` +
+    chips.slice(1).map(c=>`
+    <button class="chip" data-filter="${esc(c.id)}">
       ${c.color?`<span class="swatch" style="background:${c.color}"></span>`:''}${esc(c.label)}
     </button>`).join('');
-  glossaryFilters.querySelectorAll('.chip').forEach(ch=>{
+  glossaryFilters.querySelectorAll('.chip[data-filter]').forEach(ch=>{
+    ch.classList.toggle('active', glossaryFilterCategory===ch.dataset.filter);
     ch.addEventListener('click', ()=>{ glossaryFilterCategory = ch.dataset.filter; renderGlossary(); });
+  });
+  const unlearnedChip = document.getElementById('unlearnedFilterChip');
+  unlearnedChip.classList.toggle('active', glossaryStatusFilter==='unlearned');
+  unlearnedChip.addEventListener('click', ()=>{
+    glossaryStatusFilter = glossaryStatusFilter==='unlearned' ? 'all' : 'unlearned';
+    renderGlossary();
   });
 }
 
@@ -453,7 +519,7 @@ function termRowHtml(t, i=0){
   const col = categoryColor(t.category || 'Без категорії');
   const pr = priorityInfo(t.priority);
   const delay = Math.min(i, 10) * 35;
-  return `<div class="term-row" data-term="${t.id}" style="animation-delay:${delay}ms">
+  return `<div class="term-row ${t.learned?'learned':''}" data-term="${t.id}" style="animation-delay:${delay}ms">
     <span class="priority-flag" style="background:${pr.color}" title="Пріоритет: ${pr.label}"></span>
     <span class="t-term">${esc(t.term)}</span>
     <span class="t-expl">${t.explanationHtml || ''}</span>
@@ -461,12 +527,51 @@ function termRowHtml(t, i=0){
       <span class="category-pill" style="background:${hexAlpha(col,.16)};color:${col}"><span class="dot" style="background:${col}"></span>${esc(t.category || 'Без категорії')}</span>
       <span class="category-pill" style="background:${hexAlpha(pr.color,.16)};color:${pr.color}"><span class="dot" style="background:${pr.color}"></span>${pr.label}</span>
       ${t.images && t.images.length ? `<span class="img-count-badge" title="Зображень: ${t.images.length}"><svg class="icon" style="width:11px;height:11px" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="15" rx="2.5"/><circle cx="9" cy="10.5" r="1.6"/><path d="m4 17 5-5 3.5 3.5L17 11l3.5 3.5"/></svg>${t.images.length}</span>` : ''}
+      <button type="button" class="term-learn-toggle ${t.learned?'learned':''}" data-learn-toggle="${t.id}" title="${t.learned?'Позначити невивченим':'Позначити вивченим'}">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+      </button>
     </span>
   </div>`;
 }
 
+function toggleTermLearned(id){
+  const t = glossary.find(g=>g.id===id);
+  if(!t) return;
+  t.learned = !t.learned;
+  saveState();
+  renderGlossaryProgress();
+
+  const row = glossaryListEl.querySelector(`.term-row[data-term="${id}"]`);
+  const btn = row ? row.querySelector('[data-learn-toggle]') : null;
+  const shouldHide = glossaryStatusFilter==='unlearned' && t.learned;
+
+  if(row && shouldHide){
+    const group = row.closest('.glossary-group');
+    collapseAndRemove(row, ()=>{
+      if(group && !group.querySelector('.term-row')) group.remove();
+      if(!glossaryListEl.querySelector('.term-row')) renderGlossary();
+    });
+  } else if(row && btn){
+    row.classList.toggle('learned', t.learned);
+    btn.classList.toggle('learned', t.learned);
+    btn.title = t.learned ? 'Позначити невивченим' : 'Позначити вивченим';
+  } else {
+    renderGlossary();
+  }
+}
+
+function renderGlossaryProgress(){
+  const scoped = glossaryFilterCategory==='all' ? glossary : glossary.filter(t=>t.category===glossaryFilterCategory);
+  const total = scoped.length;
+  const learned = scoped.filter(t=>t.learned).length;
+  const scopeLabel = glossaryFilterCategory==='all' ? '' : ` у категорії «${glossaryFilterCategory}»`;
+  document.getElementById('glossaryProgressLabel').textContent = `${learned} з ${total} вивчено${scopeLabel}`;
+  document.getElementById('glossaryProgressFill').style.width = total ? `${Math.round(learned/total*100)}%` : '0%';
+}
+
 function renderGlossary(){
   renderGlossaryFilters();
+  renderGlossaryProgress();
   const items = filteredGlossary();
   glossaryBadge.textContent = glossary.length;
 
@@ -500,6 +605,12 @@ function renderGlossary(){
 
   glossaryListEl.querySelectorAll('.term-row').forEach(row=>{
     row.addEventListener('click', ()=>openGlossaryModal(Number(row.dataset.term)));
+  });
+  glossaryListEl.querySelectorAll('[data-learn-toggle]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      toggleTermLearned(Number(btn.dataset.learnToggle));
+    });
   });
 }
 
@@ -657,7 +768,7 @@ document.getElementById('glossarySaveBtn').addEventListener('click', ()=>{
     const t = glossary.find(g=>g.id===editingGlossaryId);
     t.term=term; t.explanationHtml=explanationHtml; t.category=category; t.priority=selectedPriority; t.images=images;
   } else {
-    glossary.unshift({id:glossaryIdCounter++, term, explanationHtml, category, priority:selectedPriority, images});
+    glossary.unshift({id:glossaryIdCounter++, term, explanationHtml, category, priority:selectedPriority, images, learned:false});
   }
   saveState();
   closeModal(glossaryModal);
@@ -1001,6 +1112,29 @@ function animateReviewCard(step){
     reviewAnimating = false;
   }, 380);
 }
+function markReviewCard(learned){
+  const t = reviewItems[reviewIndex];
+  if(!t) return;
+  t.learned = learned;
+  saveState();
+  renderGlossary();
+
+  if(learned && glossaryStatusFilter==='unlearned'){
+    reviewItems.splice(reviewIndex, 1);
+    if(reviewItems.length===0){
+      reviewBody.style.display='none';
+      reviewEmptyWrap.style.display='block';
+      reviewEmptyWrap.innerHTML = `<div class="review-empty">🎉 Усе вивчено за поточним фільтром!</div>`;
+      return;
+    }
+    if(reviewIndex >= reviewItems.length) reviewIndex = 0;
+    renderReviewCard();
+  } else {
+    animateReviewCard(1);
+  }
+}
+document.getElementById('reviewMarkLearned').addEventListener('click', ()=>markReviewCard(true));
+document.getElementById('reviewMarkUnlearned').addEventListener('click', ()=>markReviewCard(false));
 document.getElementById('reviewPrev').addEventListener('click', ()=>animateReviewCard(-1));
 document.getElementById('reviewNext').addEventListener('click', ()=>animateReviewCard(1));
 document.getElementById('reviewShuffle').addEventListener('click', ()=>{
