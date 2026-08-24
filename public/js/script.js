@@ -1,113 +1,183 @@
-const form = document.querySelector('form');
-const input = document.querySelector('#email-input');
-const error = document.querySelector('.error-text');
-const codeWrap = document.querySelector('#code-wrap');
-const clearBtn = document.querySelector('.clear-email');
-const codeInput = document.querySelector('#code-input');
-const codeError = document.querySelector('#code-error');
+const form = document.getElementById('loginForm');
+const nameInput = document.getElementById('name-input');
+const emailInput = document.getElementById('email-input');
+const codeInput = document.getElementById('code-input');
+const codeWrap = document.getElementById('code-wrap');
+const clearNameBtn = document.getElementById('clear-name');
+const clearEmailBtn = document.getElementById('clear-email');
+const resendBtn = document.getElementById('resend-btn');
+const submitBtn = document.getElementById('submitBtn');
+const toast = document.getElementById('toast');
+const toastMsg = document.getElementById('toastMsg');
 
-const resendBtn = document.querySelector('#resend-btn');
-let secondsLeft = 30;
-let countdownTimer = null;
+let step = 'email';
+let resendTimer = null;
 
-function startCountdown() {
- secondsLeft = 30;
- resendBtn.disabled = true;
- resendBtn.textContent = 'Надіслати повторно ('+ secondsLeft + 'с)';
-
- countdownTimer = setInterval (function () {
-  secondsLeft = secondsLeft - 1;
-  resendBtn.textContent = 'Надіслати повторно (' + secondsLeft + 'с)';
-
-  if (secondsLeft <= 0) {
-    clearInterval(countdownTimer);
-    resendBtn.disabled = false;
-    resendBtn.textContent = 'Надіслати код підтвердження повторно';
-  }
- } , 1000);
+function isValidEmail(v) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 }
 
-resendBtn.addEventListener('click', function () {
-  fetch('/request-code', {
+function setError(input, on, message) {
+  const wrap = input.closest('.input-wrap');
+  wrap.classList.toggle('error', on);
+  if (on && message) wrap.querySelector('.error-text').textContent = message;
+}
+
+function startResendTimer(seconds) {
+  let s = seconds;
+  resendBtn.disabled = true;
+  resendBtn.textContent = 'Надіслати повторно (' + s + 'с)';
+  clearInterval(resendTimer);
+  resendTimer = setInterval(function () {
+    s--;
+    if (s <= 0) {
+      clearInterval(resendTimer);
+      resendBtn.disabled = false;
+      resendBtn.textContent = 'Надіслати повторно';
+    } else {
+      resendBtn.textContent = 'Надіслати повторно (' + s + 'с)';
+    }
+  }, 1000);
+}
+
+function showToast(msg) {
+  toastMsg.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(function () { toast.classList.remove('show'); }, 2600);
+}
+
+function saveProfileToDashboard(name, email) {
+  const STORAGE_KEY = 'notaAppState';
+  let state = {};
+  try {
+    state = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+  } catch (e) {
+    state = {};
+  }
+  state.profile = Object.assign({}, state.profile, { name: name, email: email });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function requestCode(email) {
+  return fetch('/request-code', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: input.value })
+    body: JSON.stringify({ email: email })
   });
-  startCountdown();
-});
+}
 
+form.addEventListener('submit', function (e) {
+  e.preventDefault();
 
-form.addEventListener('submit', function (onSubmit) {
-  onSubmit.preventDefault();
+  if (step === 'email') {
+    const name = nameInput.value.trim();
+    const email = emailInput.value.trim();
+    let ok = true;
 
-  if (!codeWrap.classList.contains('show')) {
-    if (input.value.trim() === '') {
-      error.textContent = 'Будь ласка, введіть вашу email адресу';
-      error.classList.add('show');
-      input.classList.add('error');
-    } else if (!input.checkValidity()) {
-      error.textContent = 'Введіть коректну email адресу, наприклад name@example.com';
-      error.classList.add('show');
-      input.classList.add('error');
+    if (!name) { setError(nameInput, true); ok = false; } else setError(nameInput, false);
+
+    if (!email) {
+      setError(emailInput, true, 'Будь ласка, введіть вашу email адресу');
+      ok = false;
+    } else if (!isValidEmail(email)) {
+      setError(emailInput, true, 'Введіть коректну email адресу, наприклад name@example.com');
+      ok = false;
     } else {
-      error.classList.remove('show');
-      input.classList.remove('error');
-      codeWrap.classList.add('show');
-      input.readOnly = true;
-      clearBtn.classList.add('show');
-      setTimeout(function () {
-       codeInput.focus();
-       startCountdown();
-      }, 100);
-
-      
-      fetch('/request-code', {
-       method: 'POST',
-       headers: { 'Content-Type': 'application/json' },
-       body: JSON.stringify({ email: input.value })
-      });
+      setError(emailInput, false);
     }
+
+    if (!ok) return;
+
+    requestCode(email);
+    codeWrap.classList.add('show');
+    step = 'code';
+    startResendTimer(30);
+    showToast('Код надіслано на пошту');
+    setTimeout(function () { codeInput.focus(); }, 400);
   } else {
+    const code = codeInput.value.trim();
+    if (!code) {
+      setError(codeInput, true);
+      return;
+    }
+
     fetch('/verify-code', {
-     method: 'POST',
-     headers: { 'Content-Type': 'application/json' },
-     body: JSON.stringify({ email: input.value, code: codeInput.value.trim() })
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: emailInput.value.trim(), code: code })
     })
-   .then(function (response) {
-    return response.json();
-    })
-   .then(function (data) {
-     if (data.success) {
-       codeError.classList.remove('show');
-       alert('Код правильний! (далі тут буде перехід у кабінет)');
-     } else {
-        codeError.classList.add('show');
-      }
-    });
+      .then(function (response) { return response.json(); })
+      .then(function (data) {
+        if (data.success) {
+          setError(codeInput, false);
+          submitBtn.textContent = 'Готово ✓';
+          showToast('Вхід виконано!');
+          saveProfileToDashboard(nameInput.value.trim(), emailInput.value.trim());
+          setTimeout(function () { window.location.href = '/dashboard'; }, 700);
+        } else {
+          setError(codeInput, true);
+        }
+      });
   }
 });
 
-codeInput.addEventListener('input', function () {
-  codeError.classList.remove('show');
+clearNameBtn.addEventListener('click', function () {
+  nameInput.value = '';
+  nameInput.focus();
 });
 
-clearBtn.addEventListener('click', function () {
-  input.readOnly = false;
-  clearBtn.classList.remove('show');
-  codeWrap.classList.remove('show');
-  input.focus();
+nameInput.addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    emailInput.focus();
+  }
 });
 
-input.addEventListener('input', function () {
-  error.classList.remove('show');
-  input.classList.remove('error');
+clearEmailBtn.addEventListener('click', function () {
+  emailInput.value = '';
+  emailInput.focus();
+  if (step === 'code') {
+    codeWrap.classList.remove('show');
+    step = 'email';
+    clearInterval(resendTimer);
+  }
 });
 
-const langToggle = document.querySelector('.lang-toggle');
-const langMenu = document.querySelector('.lang-menu');
-
-langToggle.addEventListener('click', function () {
-  const isOpen = langToggle.classList.toggle('active');
-  langMenu.classList.toggle('show');
-  langToggle.setAttribute('aria-expanded', isOpen);
+resendBtn.addEventListener('click', function () {
+  if (resendBtn.disabled) return;
+  requestCode(emailInput.value.trim());
+  startResendTimer(30);
+  showToast('Код надіслано повторно');
 });
+
+codeInput.addEventListener('input', function () { setError(codeInput, false); });
+emailInput.addEventListener('input', function () { setError(emailInput, false); });
+nameInput.addEventListener('input', function () { setError(nameInput, false); });
+
+const langSegIndicator = document.getElementById('langSegIndicator');
+function moveLangIndicator(btn) {
+  langSegIndicator.style.width = btn.offsetWidth + 'px';
+  langSegIndicator.style.left = btn.offsetLeft + 'px';
+}
+function setLang(lang) {
+  document.querySelectorAll('.lang-seg-btn').forEach(function (b) {
+    const active = b.dataset.lang === lang;
+    b.classList.toggle('active', active);
+    b.setAttribute('aria-pressed', active);
+    if (active) moveLangIndicator(b);
+  });
+  localStorage.setItem('notaLang', lang);
+}
+document.querySelectorAll('.lang-seg-btn').forEach(function (btn) {
+  btn.addEventListener('click', function () { setLang(btn.dataset.lang); });
+});
+setLang(localStorage.getItem('notaLang') || 'ua');
+window.addEventListener('load', function () {
+  moveLangIndicator(document.querySelector('.lang-seg-btn.active'));
+});
+if (document.fonts) {
+  document.fonts.ready.then(function () {
+    moveLangIndicator(document.querySelector('.lang-seg-btn.active'));
+  });
+}

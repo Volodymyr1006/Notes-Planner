@@ -1,58 +1,81 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Notes Planner — особистий застосунок для нотаток і планування подій у календарі.">
-
-    <title>Вхід</title>
-    <link rel="stylesheet" href="/css/styles.css">
-    <link rel="icon" href="/imgs/favicon.svg">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Notes Planner — особистий застосунок для нотаток і планування подій у календарі.">
+<title>Вхід — Notes Planner</title>
+<link rel="icon" href="/imgs/favicon-white.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/login.css">
 </head>
 <body>
 
- <main>
- <img class="top-logo" src="/imgs/logo.svg" alt="Notes Planner">
- <p class="tagline">Твій особистий помічник</p>
- <h1>Увійти в акаунт Notes</h1>
- <form novalidate>
+<div class="glow glow-a"></div>
+<div class="glow glow-b"></div>
 
-  <div class="input-wrap">
-   <label for="email-input">Email</label>
-   <div class="field">
-    <input type="email" id="email-input" placeholder="Твій email">
-    <button type="button" class="clear-email" id="clear-email" aria-label="Змінити email">✕</button>
-   </div>
-   <p class="error-text" role="alert">Будь ласка, введіть вашу email адресу</p>
-  </div>
-  <p class="helper-text">Ми надішлемо код підтвердження на цю адресу</p>
-  <div class="code-wrap" id="code-wrap">
-   <div class="input-wrap">
-    <label for="code-input">Код підтвердження</label>
-    <input type="text" id="code-input" placeholder="Введи код">
-    <p class="error-text" id="code-error" role="alert">Невірний код, спробуй ще раз</p>
-   </div>
-   <p class="helper-text">Ми надіслали код на твою пошту</p>
-   <button type="button" class="resend-btn" id="resend-btn" disabled>Надіслати повторно (30с)</button>
-  </div>
-  <button type="submit">Продовжити</button>
- </form>
- 
- <div class="lang-switch">
-  <button type="button" class="lang-toggle" aria-haspopup="listbox" aria-expanded="false">🌐 UA <span class="chevron">▾</span></button>
-  <ul class="lang-menu">
-   <li>
-    <span class="lang-name">English (EN)</span>
-    <span class="lang-sub">English</span>
-   </li>
-   <li>
-    <span class="lang-name">Українська (UA)</span>
-    <span class="lang-sub">Ukrainian</span>
-   </li>
-  </ul>
- </div>
- </main>
+<main class="auth-shell">
+  <div class="auth-card">
+    <a href="/" class="back-link"><svg class="icon" viewBox="0 0 24 24"><path d="M19 12H5M11 18l-6-6 6-6"/></svg> Назад</a>
+    <a href="/" class="top-logo"><img src="/imgs/logo-white.svg" alt="Notes Planner"></a>
+    <p class="tagline">Твій особистий помічник</p>
+    <h1>Увійти в акаунт</h1>
 
- <script src="/js/script.js"></script>
+    <form novalidate id="loginForm">
+
+      <div class="input-wrap">
+        <label for="name-input">Ім'я користувача</label>
+        <div class="field">
+          <input type="text" id="name-input" placeholder="Як до тебе звертатись?" autocomplete="off">
+          <button type="button" class="clear-email" id="clear-name" aria-label="Очистити ім'я">
+            <svg class="icon icon-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          </button>
+        </div>
+        <p class="error-text" role="alert">Введи ім'я користувача</p>
+      </div>
+
+      <div class="input-wrap">
+        <label for="email-input">Email</label>
+        <div class="field">
+          <input type="email" id="email-input" placeholder="Твій email" autocomplete="email">
+          <button type="button" class="clear-email" id="clear-email" aria-label="Змінити email">
+            <svg class="icon icon-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          </button>
+        </div>
+        <p class="error-text" role="alert">Будь ласка, введіть вашу email адресу</p>
+      </div>
+      <p class="helper-text">Ми надішлемо код підтвердження на цю адресу</p>
+
+      <div class="code-wrap" id="code-wrap">
+        <div class="code-wrap-inner">
+          <div class="input-wrap">
+            <label for="code-input">Код підтвердження</label>
+            <input type="text" id="code-input" placeholder="Введи код" inputmode="numeric" autocomplete="one-time-code">
+            <p class="error-text" role="alert">Невірний код, спробуй ще раз</p>
+          </div>
+          <p class="helper-text">Ми надіслали код на твою пошту</p>
+          <button type="button" class="resend-btn" id="resend-btn" disabled>Надіслати повторно (30с)</button>
+        </div>
+      </div>
+
+      <button type="submit" class="submit-btn" id="submitBtn">Створити акаунт</button>
+    </form>
+
+    <div class="lang-segment" id="langSegment" role="group" aria-label="Мова інтерфейсу">
+      <span class="lang-seg-indicator" id="langSegIndicator" aria-hidden="true"></span>
+      <button type="button" class="lang-seg-btn active" data-lang="ua" aria-pressed="true">UA</button>
+      <button type="button" class="lang-seg-btn" data-lang="en" aria-pressed="false">EN</button>
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast">
+  <span class="tick">✓</span>
+  <span id="toastMsg">Код надіслано</span>
+</div>
+
+<script src="/js/script.js"></script>
 </body>
 </html>
