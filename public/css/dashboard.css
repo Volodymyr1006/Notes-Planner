@@ -372,11 +372,16 @@ button:hover svg.icon-x{transform:scale(1.15) rotate(90deg);}
   .menu-burger{display:inline-flex;}
   .topbar{padding:16px 20px;}
   .content{padding:20px 18px 60px;}
+  #topbarAdd{padding:9px 14px;font-size:13px;}
 }
 @media (max-width:560px){
   .stats-grid{grid-template-columns:1fr 1fr;}
   .quick-add{flex-direction:column;}
   .quick-add .btn{width:100%;}
+}
+@media (max-width:420px){
+  #topbarAddLabel{display:none;}
+  #topbarAdd{padding:9px;gap:0;}
 }
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important;}

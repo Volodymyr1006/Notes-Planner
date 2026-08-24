@@ -245,11 +245,11 @@ const topbarAdd = document.getElementById('topbarAdd');
 const topbarAddLabel = document.getElementById('topbarAddLabel');
 
 const VIEW_META = {
-  overview:{title:'Огляд', sub:'Швидкий погляд на твій день', addLabel:'Список', add:()=>openListModal()},
+  overview:{title:'Огляд', sub:'Швидкий погляд на твій день'},
   notes:{title:'Нотатки', sub:'', addLabel:'Список', add:()=>openListModal()},
   glossary:{title:'Глосарій', sub:'Терміни, які варто пам\'ятати', addLabel:'Термін', add:()=>openGlossaryModal()},
   calendar:{title:'Календар', sub:'Плануй свої дні наперед', addLabel:'Подія', add:()=>openEventModal(todayStr)},
-  profile:{title:'Профіль', sub:'Керуй акаунтом і налаштуваннями', addLabel:'Список', add:()=>openListModal()},
+  profile:{title:'Профіль', sub:'Керуй акаунтом і налаштуваннями'},
 };
 
 function positionNavIndicator(el){
@@ -265,8 +265,13 @@ function setActiveView(name, opts={}){
   const meta = VIEW_META[name];
   topbarTitle.textContent = name==='notes' ? (lists.find(l=>l.id===activeListId)?.name || 'Нотатки') : meta.title;
   topbarSub.textContent = meta.sub;
-  topbarAddLabel.textContent = meta.addLabel;
-  topbarAdd.onclick = meta.add;
+  if(meta.add){
+    topbarAdd.style.display = '';
+    topbarAddLabel.textContent = meta.addLabel;
+    topbarAdd.onclick = meta.add;
+  } else {
+    topbarAdd.style.display = 'none';
+  }
   closeSidebarMobile();
   if(name==='overview') renderOverview();
   if(name==='notes') renderNotes();
