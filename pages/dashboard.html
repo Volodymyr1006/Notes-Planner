@@ -178,7 +178,7 @@
           <button class="cal-today-btn" id="calToday">Сьогодні</button>
         </div>
         <div class="weekdays"><span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Нд</span></div>
-        <div class="calendar-grid" id="calendarGrid"></div>
+        <div class="calendar-grid" id="calendarGrid"><div class="cal-grid-track" id="calendarGridTrack"></div></div>
         <div class="calendar-agenda" id="calendarAgenda"></div>
       </section>
 
@@ -336,6 +336,25 @@
       <svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
       Нова подія
     </button>
+  </div>
+</div>
+
+<!-- EVENT VIEW MODAL (короткий перегляд події перед повним редагуванням) -->
+<div class="modal-overlay" id="eventViewModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="eventViewTitle">Подія</h3>
+      <div class="modal-head-actions">
+        <button class="modal-edit-btn" id="eventViewEditBtn" title="Редагувати" aria-label="Редагувати">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        </button>
+        <button class="modal-delete-btn" id="eventViewDeleteBtn" title="Видалити" aria-label="Видалити">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13"/></svg>
+        </button>
+        <button class="modal-close" id="eventViewClose"><svg class="icon icon-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      </div>
+    </div>
+    <div class="event-view-body" id="eventViewBody"></div>
   </div>
 </div>
 
