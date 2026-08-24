@@ -7,6 +7,21 @@ const todayStr = `${todayDate.getFullYear()}-${pad(todayDate.getMonth()+1)}-${pa
 const fmtDate = (y,m,d) => `${y}-${pad(m+1)}-${pad(d)}`;
 const esc = s => { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; };
 const hexAlpha = (hex,a) => { const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16); return `rgba(${r},${g},${b},${a})`; };
+function mutedColor(hex, s=32, l=27){
+  const r=parseInt(hex.slice(1,3),16)/255, g=parseInt(hex.slice(3,5),16)/255, b=parseInt(hex.slice(5,7),16)/255;
+  const max=Math.max(r,g,b), min=Math.min(r,g,b), d=max-min;
+  let h=0;
+  if(d){
+    if(max===r) h=((g-b)/d)%6;
+    else if(max===g) h=(b-r)/d+2;
+    else h=(r-g)/d+4;
+    h*=60; if(h<0) h+=360;
+  }
+  const c=(1-Math.abs(2*l/100-1))*(s/100), x=c*(1-Math.abs((h/60)%2-1)), m=l/100-c/2;
+  const [r2,g2,b2] = h<60?[c,x,0]:h<120?[x,c,0]:h<180?[0,c,x]:h<240?[0,x,c]:h<300?[x,0,c]:[c,0,x];
+  const toHex=v=>Math.round((v+m)*255).toString(16).padStart(2,'0');
+  return `#${toHex(r2)}${toHex(g2)}${toHex(b2)}`;
+}
 
 /* плавно "згортає" й прибирає один рядок картки/списку, замість того щоб
    перемальовувати весь список наново (без цього видалення відчувалось як
@@ -69,6 +84,7 @@ const PRIORITY = [
   {id:'medium', label:'Середній', color:'#e8b34f'},
   {id:'high', label:'Високий', color:'#ef6b6b'},
 ];
+const PRIORITY_FLAG_COLOR = {low:'#4a4a52', medium:'#5c4a2a', high:'#5c2f2f'};
 function priorityInfo(id){ return PRIORITY.find(p=>p.id===id) || PRIORITY[1]; }
 function eventTimeRange(e){ return e.time && e.endTime ? `${e.time}–${e.endTime}` : (e.time||''); }
 function stripHtml(html){ const d=document.createElement('div'); d.innerHTML=html||''; return d.textContent||''; }
@@ -256,6 +272,7 @@ function setActiveView(name, opts={}){
   if(name==='notes') renderNotes();
   if(name==='glossary'){ renderGlossary(); moveGlossaryViewIndicator(document.querySelector('#glossaryViewToggle button.active')); }
   if(name==='calendar') renderCalendar();
+  if(name==='profile') moveLangIndicator(document.querySelector('.lang-seg-btn.active'));
 }
 navItems.forEach(n=>n.addEventListener('click', ()=>setActiveView(n.dataset.view)));
 document.querySelectorAll('[data-goto]').forEach(el=>{
@@ -365,6 +382,7 @@ const quickAddInput = document.getElementById('quickAddInput');
 function activeList(){ return lists.find(l=>l.id===activeListId) || lists[0]; }
 
 function renderNotes(){
+  checkList.classList.toggle('compact', !!prefs.compact);
   const list = activeList();
   if(!list){
     notesListName.textContent = 'Немає списків';
@@ -424,7 +442,7 @@ function updateNotesAggregates(list){
 function emptyStateHtml(title, sub){
   return `<div class="empty-state">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 3h9l5 5v13H6z"/><path d="M14 3v5h5"/></svg>
-    <span>${esc(title)}</span><p>${esc(sub)}</p></div>`;
+    <span>${esc(title)}</span>${prefs.hints ? `<p>${esc(sub)}</p>` : ''}</div>`;
 }
 function toggleItem(id){
   const list = activeList(); if(!list) return;
@@ -538,12 +556,12 @@ function termRowHtml(t, i=0){
   const pr = priorityInfo(t.priority);
   const delay = Math.min(i, 10) * 35;
   return `<div class="term-row ${t.learned?'learned':''}" data-term="${t.id}" style="animation-delay:${delay}ms">
-    <span class="priority-flag" style="background:${pr.color}" title="Пріоритет: ${pr.label}"></span>
+    <span class="priority-flag" style="background:${PRIORITY_FLAG_COLOR[pr.id]}" title="Пріоритет: ${pr.label}"></span>
     <span class="t-term">${esc(t.term)}</span>
     <span class="t-expl">${t.explanationHtml || ''}</span>
     <span class="t-cat">
-      <span class="category-pill" style="background:${hexAlpha(col,.16)};color:${col}"><span class="dot" style="background:${col}"></span>${esc(t.category || 'Без категорії')}</span>
-      <span class="category-pill" style="background:${hexAlpha(pr.color,.16)};color:${pr.color}"><span class="dot" style="background:${pr.color}"></span>${pr.label}</span>
+      <span class="category-pill"><span class="dot" style="background:${col}"></span>${esc(t.category || 'Без категорії')}</span>
+      <span class="category-pill"><span class="dot" style="background:${pr.color}"></span>${pr.label}</span>
       ${t.images && t.images.length ? `<span class="img-count-badge" title="Зображень: ${t.images.length}"><svg class="icon" style="width:11px;height:11px" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="15" rx="2.5"/><circle cx="9" cy="10.5" r="1.6"/><path d="m4 17 5-5 3.5 3.5L17 11l3.5 3.5"/></svg>${t.images.length}</span>` : ''}
       <button type="button" class="term-learn-toggle ${t.learned?'learned':''}" data-learn-toggle="${t.id}" title="${t.learned?'Позначити невивченим':'Позначити вивченим'}">
         <svg class="icon" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
@@ -744,7 +762,7 @@ function renderCategorySuggestions(){
   categorySuggestList.innerHTML = matches.length
     ? matches.map(c => {
         const col = categoryColor(c);
-        return `<li data-cat="${esc(c)}"><span class="category-pill" style="background:${hexAlpha(col,.16)};color:${col}"><span class="dot" style="background:${col}"></span>${esc(c)}</span></li>`;
+        return `<li data-cat="${esc(c)}"><span class="category-pill"><span class="dot" style="background:${col}"></span>${esc(c)}</span></li>`;
       }).join('')
     : `<li class="empty">Немає збережених категорій</li>`;
   categorySuggestList.querySelectorAll('li[data-cat]').forEach(li=>{
@@ -1034,25 +1052,16 @@ function applyFormat(cmd, range, color){
     range.insertNode(el);
   }
 }
-let pendingHighlightRange = null;
 selectionToolbar.addEventListener('mousedown', (e)=>{
   e.preventDefault();
-  const swatch = e.target.closest('.color-swatch');
-  if(swatch){
-    e.stopPropagation();
-    if(pendingHighlightRange) applyFormat('highlight', pendingHighlightRange, swatch.dataset.color);
-    pendingHighlightRange = null;
-    window.getSelection().removeAllRanges();
-    hideSelectionToolbar();
-    return;
-  }
   const btn = e.target.closest('button[data-cmd]');
   if(!btn) return;
   if(btn.dataset.cmd === 'highlight'){
     const range = getEditorSelectionRange();
     if(!range) return;
-    pendingHighlightRange = range;
-    selectionToolbar.classList.toggle('colors-open');
+    applyFormat('highlight', range, '#514d2a');
+    window.getSelection().removeAllRanges();
+    hideSelectionToolbar();
     return;
   }
   if(btn.dataset.cmd === 'copy'){
@@ -1111,8 +1120,8 @@ function renderReviewCard(){
   const col = categoryColor(t.category || 'Без категорії');
   const pr = priorityInfo(t.priority);
   const badgesHtml = `
-    <span class="category-pill" style="background:${hexAlpha(col,.16)};color:${col}"><span class="dot" style="background:${col}"></span>${esc(t.category||'Без категорії')}</span>
-    <span class="category-pill" style="background:${hexAlpha(pr.color,.16)};color:${pr.color}"><span class="dot" style="background:${pr.color}"></span>${pr.label}</span>`;
+    <span class="category-pill"><span class="dot" style="background:${col}"></span>${esc(t.category||'Без категорії')}</span>
+    <span class="category-pill"><span class="dot" style="background:${pr.color}"></span>${pr.label}</span>`;
   document.getElementById('reviewBadgesFront').innerHTML = badgesHtml;
   document.getElementById('reviewBadgesBack').innerHTML = badgesHtml;
 }
@@ -1208,7 +1217,7 @@ function renderOverview(){
   const todays = events[todayStr]||[];
   agendaMini.innerHTML = todays.length ? todays.slice().sort((a,b)=>(a.time||'').localeCompare(b.time||'')).map(e=>{
     const col = eventTypeColor(e.type||'Інше');
-    return `<div class="agenda-mini-row" style="--pill-line:${col}"><span class="t">${eventTimeRange(e)||'—'}</span><span class="n">${esc(e.title)}</span></div>`;
+    return `<div class="agenda-mini-row" style="--pill-line:${mutedColor(col)}"><span class="t">${eventTimeRange(e)||'—'}</span><span class="n">${esc(e.title)}</span></div>`;
   }).join('') : `<div class="dash-empty">На сьогодні планів немає. Загляни в календар, щоб додати.</div>`;
 
   const listsProgress = document.getElementById('listsProgress');
@@ -1281,7 +1290,7 @@ function renderCalendar(){
           ${shown.map(e=>{
             const col = eventTypeColor(e.type||'Інше');
             const range = eventTimeRange(e);
-            return `<div class="ev-pill" data-pill-of="${key}" style="--pill-color:${hexAlpha(col,.18)};--pill-line:${col}"><span class="ev-pill-text">${range?`<span class="ev-pill-time">${range}</span> `:''}${esc(e.title)}</span></div>`;
+            return `<div class="ev-pill" data-pill-of="${key}" style="--pill-line:${mutedColor(col)}"><span class="ev-pill-text">${range?`<span class="ev-pill-time">${range}</span> `:''}${esc(e.title)}</span></div>`;
           }).join('')}
         </div>
       </div>`;
@@ -1336,7 +1345,7 @@ function renderAgenda(){
         ${evs.length? evs.map(e=>{
           const col = eventTypeColor(e.type||'Інше');
           const range = eventTimeRange(e);
-          return `<div class="ev-pill agenda-ev" style="--pill-color:${hexAlpha(col,.18)};--pill-line:${col}">
+          return `<div class="ev-pill agenda-ev" style="--pill-line:${mutedColor(col)}">
             <div class="ev-pill-main">${range?`<span class="ev-pill-time">${range}</span>`:''}<span class="ev-pill-title">${esc(e.title)}</span></div>
             ${e.location?`<div class="ev-pill-loc"><svg class="icon" viewBox="0 0 24 24"><path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.3"/></svg>${esc(e.location)}</div>`:''}
           </div>`;
@@ -1377,7 +1386,7 @@ function renderDayModalList(){
     dayModalList.innerHTML = evs.map(e=>{
       const col = eventTypeColor(e.type||'Інше');
       const range = eventTimeRange(e);
-      return `<div class="day-modal-ev" data-id="${e.id}" style="--pill-line:${col}">
+      return `<div class="day-modal-ev" data-id="${e.id}" style="--pill-line:${mutedColor(col)}">
         <div class="dme-time">${range||'—'}</div>
         <div class="dme-main">
           <div class="dme-title">${esc(e.title)}</div>
@@ -1548,7 +1557,7 @@ function renderEventTypeSuggestions(){
   eventTypeSuggestList.innerHTML = matches.length
     ? matches.map(t => {
         const col = eventTypeColor(t);
-        return `<li data-type="${esc(t)}"><span class="category-pill" style="background:${hexAlpha(col,.16)};color:${col}"><span class="dot" style="background:${col}"></span>${esc(t)}</span></li>`;
+        return `<li data-type="${esc(t)}"><span class="category-pill"><span class="dot" style="background:${col}"></span>${esc(t)}</span></li>`;
       }).join('')
     : `<li class="empty">Немає збережених типів</li>`;
   eventTypeSuggestList.querySelectorAll('li[data-type]').forEach(li=>{
@@ -1578,7 +1587,7 @@ function openEventViewModal(key, eventId){
   const range = eventTimeRange(ev);
   const rows = [];
   if(range) rows.push(`<div class="ev-view-row"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>${esc(range)}</div>`);
-  if(ev.type) rows.push(`<div class="ev-view-row"><span class="category-pill" style="background:${hexAlpha(col,.16)};color:${col}"><span class="dot" style="background:${col}"></span>${esc(ev.type)}</span></div>`);
+  if(ev.type) rows.push(`<div class="ev-view-row"><span class="category-pill"><span class="dot" style="background:${col}"></span>${esc(ev.type)}</span></div>`);
   if(ev.location) rows.push(`<div class="ev-view-row"><svg class="icon" viewBox="0 0 24 24"><path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.3"/></svg>${esc(ev.location)}</div>`);
   eventViewBody.innerHTML = rows.join('') + (ev.note ? `<div class="ev-view-note">${esc(ev.note)}</div>` : '');
   openModal(eventViewModal);
@@ -1725,11 +1734,14 @@ document.getElementById('avatarRemoveBtn').addEventListener('click', ()=>{
   showToast('Фото видалено');
 });
 document.querySelectorAll('.toggle[data-pref]').forEach(t=>{
+  t.classList.toggle('on', !!prefs[t.dataset.pref]);
   t.addEventListener('click', ()=>{
     const key = t.dataset.pref;
     prefs[key] = !prefs[key];
     t.classList.toggle('on', prefs[key]);
     saveState();
+    if(key==='compact') renderNotes();
+    if(key==='hints'){ renderNotes(); renderGlossary(); }
   });
 });
 document.getElementById('profileMini').addEventListener('click', ()=>setActiveView('profile'));
