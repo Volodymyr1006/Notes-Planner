@@ -1231,6 +1231,7 @@ function renderOverview(){
 const MONTH_NAMES = ['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
 const WEEKDAY_SHORT = ['Пн','Вт','Ср','Чт','Пт','Сб','Нд'];
 const calendarGrid = document.getElementById('calendarGrid');
+const calendarGridTrack = document.getElementById('calendarGridTrack');
 const calendarAgenda = document.getElementById('calendarAgenda');
 const calTitle = document.getElementById('calTitle');
 
@@ -1251,7 +1252,7 @@ function renderCalendar(){
   const weeks = [];
   for(let i=0;i<cells.length;i+=7) weeks.push(cells.slice(i,i+7));
 
-  calendarGrid.innerHTML = weeks.map(week=>{
+  calendarGridTrack.innerHTML = weeks.map(week=>{
     const hasEv = week.map(c => c ? ((events[fmtDate(c.y,c.m,c.d)]||[]).length>0) : false);
     return `<div class="cal-row">${week.map((c,i)=>{
       if(!c) return `<div class="day-cell day-cell-empty"></div>`;
@@ -1266,22 +1267,22 @@ function renderCalendar(){
       // звужується, звільняючи місце — але лишається повністю клікабельною
       let growClass = '';
       if(hasEv[i]){
-        const emptyNeighbors = (i>0 && !hasEv[i-1] ? 1:0) + (i<6 && !hasEv[i+1] ? 1:0);
-        growClass = emptyNeighbors===2 ? 'grow-2' : emptyNeighbors===1 ? 'grow-1' : '';
+        const hasEmptyNeighbor = (i>0 && !hasEv[i-1]) || (i<6 && !hasEv[i+1]);
+        growClass = hasEmptyNeighbor ? 'grow-1' : '';
       } else {
-        const fullNeighbors = (i>0 && hasEv[i-1] ? 1:0) + (i<6 && hasEv[i+1] ? 1:0);
-        growClass = fullNeighbors===2 ? 'shrink-2' : fullNeighbors===1 ? 'shrink-1' : '';
+        const hasFullNeighbor = (i>0 && hasEv[i-1]) || (i<6 && hasEv[i+1]);
+        growClass = hasFullNeighbor ? 'shrink-1' : '';
       }
 
       return `<div class="day-cell ${isToday?'is-today':''} ${growClass}" data-key="${key}">
         <span class="day-num">${c.d}</span>
+        ${more>0?`<span class="day-count-badge">${evs.length}+</span>`:''}
         <div class="day-events">
           ${shown.map(e=>{
             const col = eventTypeColor(e.type||'Інше');
             const range = eventTimeRange(e);
-            return `<div class="ev-pill" data-pill-of="${key}" style="--pill-color:${hexAlpha(col,.18)};--pill-line:${col}">${range?`<span class="ev-pill-time">${range}</span> `:''}${esc(e.title)}</div>`;
+            return `<div class="ev-pill" data-pill-of="${key}" style="--pill-color:${hexAlpha(col,.18)};--pill-line:${col}"><span class="ev-pill-text">${range?`<span class="ev-pill-time">${range}</span> `:''}${esc(e.title)}</span></div>`;
           }).join('')}
-          ${more>0?`<div class="ev-more">+${more} ще</div>`:''}
         </div>
       </div>`;
     }).join('')}</div>`;
@@ -1294,8 +1295,20 @@ function renderCalendar(){
     });
   });
   bindPillClicks(calendarGrid);
+  markOverflowingPills(calendarGrid);
 
   renderAgenda();
+}
+function markOverflowingPills(root){
+  root.querySelectorAll('.day-events .ev-pill').forEach(pill=>{
+    const text = pill.querySelector('.ev-pill-text');
+    if(!text) return;
+    const overflow = text.offsetWidth - pill.clientWidth + 16;
+    if(overflow > 0){
+      pill.classList.add('is-overflow');
+      pill.style.setProperty('--marquee-dist', `-${overflow + 4}px`);
+    }
+  });
 }
 function bindPillClicks(root){
   root.querySelectorAll('[data-key], [data-key].agenda-row').forEach(cell=>{
@@ -1304,7 +1317,7 @@ function bindPillClicks(root){
       pill.addEventListener('click',(e)=>{
         e.stopPropagation();
         const ev = (events[key]||[])[idx];
-        if(ev) openEventModal(key, ev.id);
+        if(ev) openEventViewModal(key, ev.id);
       });
     });
   });
@@ -1375,7 +1388,7 @@ function renderDayModalList(){
     dayModalList.querySelectorAll('.day-modal-ev').forEach(row=>{
       row.addEventListener('click', ()=>{
         closeModal(dayModal);
-        openEventModal(dayModalKey, Number(row.dataset.id));
+        openEventViewModal(dayModalKey, Number(row.dataset.id));
       });
     });
   }
@@ -1385,8 +1398,54 @@ document.getElementById('dayModalAddBtn').addEventListener('click', ()=>{
   openEventModal(dayModalKey);
 });
 document.getElementById('dayModalClose').addEventListener('click', ()=>closeModal(dayModal));
-document.getElementById('calPrev').addEventListener('click', ()=>{ calMonth--; if(calMonth<0){calMonth=11;calYear--;} renderCalendar(); });
-document.getElementById('calNext').addEventListener('click', ()=>{ calMonth++; if(calMonth>11){calMonth=0;calYear++;} renderCalendar(); });
+let calAnimating = false;
+function navigateMonth(dir){
+  if(calAnimating) return;
+  calAnimating = true;
+
+  const enterSide = dir>0 ? 'cal-off-right' : 'cal-off-left';
+  const exitSide = dir>0 ? 'cal-off-left' : 'cal-off-right';
+
+  const oldHeight = calendarGrid.offsetHeight;
+  const ghost = document.createElement('div');
+  ghost.className = 'cal-ghost';
+  ghost.innerHTML = calendarGridTrack.innerHTML;
+  calendarGrid.style.height = oldHeight+'px';
+  calendarGrid.appendChild(ghost);
+
+  calMonth += dir;
+  if(calMonth<0){ calMonth=11; calYear--; }
+  if(calMonth>11){ calMonth=0; calYear++; }
+  renderCalendar();
+
+  calendarGridTrack.classList.add('cal-no-anim', enterSide);
+  void calendarGridTrack.offsetWidth;
+  calendarGridTrack.classList.remove('cal-no-anim');
+  const newHeight = calendarGridTrack.scrollHeight;
+
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    calendarGridTrack.classList.remove(enterSide);
+    ghost.classList.add(exitSide);
+    calendarGrid.style.height = newHeight+'px';
+  }));
+
+  const safetyTimer = setTimeout(finishNavigate, 600);
+  function finishNavigate(){
+    if(!calAnimating) return;
+    clearTimeout(safetyTimer);
+    ghost.remove();
+    calendarGrid.style.height = '';
+    calAnimating = false;
+    calendarGridTrack.removeEventListener('transitionend', onTrackTransitionEnd);
+  }
+  function onTrackTransitionEnd(e){
+    if(e.target!==calendarGridTrack || e.propertyName!=='transform') return;
+    finishNavigate();
+  }
+  calendarGridTrack.addEventListener('transitionend', onTrackTransitionEnd);
+}
+document.getElementById('calPrev').addEventListener('click', ()=>navigateMonth(-1));
+document.getElementById('calNext').addEventListener('click', ()=>navigateMonth(1));
 document.getElementById('calToday').addEventListener('click', ()=>{ calYear=CY; calMonth=CM; renderCalendar(); showToast('Перейшли до сьогодні'); });
 
 const eventModal = document.getElementById('eventModal');
@@ -1505,6 +1564,35 @@ eventTypeComboToggle.addEventListener('click', ()=>{
 });
 eventTypeInput.addEventListener('focus', openEventTypeCombo);
 eventTypeInput.addEventListener('input', renderEventTypeSuggestions);
+
+const eventViewModal = document.getElementById('eventViewModal');
+const eventViewTitle = document.getElementById('eventViewTitle');
+const eventViewBody = document.getElementById('eventViewBody');
+let viewingEventKey = null, viewingEventId = null;
+function openEventViewModal(key, eventId){
+  const ev = (events[key]||[]).find(e=>e.id===eventId);
+  if(!ev) return;
+  viewingEventKey = key; viewingEventId = eventId;
+  eventViewTitle.textContent = ev.title;
+  const col = eventTypeColor(ev.type||'Інше');
+  const range = eventTimeRange(ev);
+  const rows = [];
+  if(range) rows.push(`<div class="ev-view-row"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>${esc(range)}</div>`);
+  if(ev.type) rows.push(`<div class="ev-view-row"><span class="category-pill" style="background:${hexAlpha(col,.16)};color:${col}"><span class="dot" style="background:${col}"></span>${esc(ev.type)}</span></div>`);
+  if(ev.location) rows.push(`<div class="ev-view-row"><svg class="icon" viewBox="0 0 24 24"><path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.3"/></svg>${esc(ev.location)}</div>`);
+  eventViewBody.innerHTML = rows.join('') + (ev.note ? `<div class="ev-view-note">${esc(ev.note)}</div>` : '');
+  openModal(eventViewModal);
+}
+document.getElementById('eventViewEditBtn').addEventListener('click', ()=>{
+  closeModal(eventViewModal);
+  openEventModal(viewingEventKey, viewingEventId);
+});
+document.getElementById('eventViewClose').addEventListener('click', ()=>closeModal(eventViewModal));
+document.getElementById('eventViewDeleteBtn').addEventListener('click', ()=>{
+  events[viewingEventKey] = (events[viewingEventKey]||[]).filter(e=>e.id!==viewingEventId);
+  saveState();
+  closeModal(eventViewModal); renderCalendar(); showToast('План видалено');
+});
 
 function openEventModal(key, eventId=null){
   editingEventKey=key; editingEventId=eventId;
