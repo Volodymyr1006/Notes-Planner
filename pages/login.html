@@ -10,6 +10,16 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/login.css">
+<script>
+  // TEMPORARY: "remember me" is just a client-side timestamp in localStorage for now —
+  // there is no real backend session yet (see server/server.js). Anyone can bypass this
+  // by editing localStorage. Replace with a real server-side session once accounts +
+  // SQLite exist (see PROJECT_STATUS.md plan items 1-2).
+  (function () {
+    var until = Number(localStorage.getItem('notaRememberedUntil'));
+    if (until && Date.now() < until) window.location.href = '/dashboard';
+  })();
+</script>
 </head>
 <body>
 
@@ -25,7 +35,7 @@
 
     <form novalidate id="loginForm">
 
-      <div class="input-wrap">
+      <div class="input-wrap" id="name-wrap">
         <label for="name-input">Ім'я користувача</label>
         <div class="field">
           <input type="text" id="name-input" placeholder="Як до тебе звертатись?" autocomplete="off">
@@ -46,6 +56,13 @@
         </div>
         <p class="error-text" role="alert">Будь ласка, введіть вашу email адресу</p>
       </div>
+
+      <label class="remember-row" for="remember-me">
+        <input type="checkbox" id="remember-me">
+        <span class="checkbox-box"><svg class="icon" viewBox="0 0 24 24"><path d="M5 12l5 5L19 7"/></svg></span>
+        Запам'ятати мене
+      </label>
+
       <p class="helper-text">Ми надішлемо код підтвердження на цю адресу</p>
 
       <div class="code-wrap" id="code-wrap">

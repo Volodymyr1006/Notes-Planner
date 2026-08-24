@@ -8,9 +8,9 @@ Actively in development.
 
 **Done:**
 - Landing page (`index.html`, own stylesheet `landing.css`) — full redesign: hero with animated product-preview mockups, features/why/FAQ (accordion, no-JS-details-free custom implementation with smooth height animation and glow-on-open border) and CTA sections, sticky nav with scroll-spy-free anchor links, footer. Fully responsive from 320px to desktop, with a compact icon-only logo and a globe-icon language dropdown replacing the full controls on narrow screens. Semantic landmarks (`<main>`, one `<h1>`), ARIA on the FAQ accordion and language toggle, decorative elements marked `aria-hidden`. Language selection (UI-only) persists via `localStorage`.
-- Login flow (`login.html`): email validation, verification code generated/checked on the server, resend button with countdown
+- Login flow (`login.html`, own dark-theme stylesheet `login.css` matching the landing page/dashboard): name + email step with a verification code generated/checked on the server, resend button with countdown, clear (×) buttons on both fields that scale/rotate on hover, Enter in the name field moves focus to email, segmented UA/EN toggle synced with the landing page via `localStorage`. A "remember me" checkbox stores a 10-day timestamp in `localStorage`; while it's valid, visiting `/login` redirects straight to `/dashboard` without showing the form. A returning user (already logged in once on this browser) who clicks "Увійти" gets a shorter sign-in form — no name field, no "remember me" — while "Реєстрація" always shows the full form. Name/email are saved into the same `localStorage` state the dashboard reads, without overwriting an already-saved name when the sign-in form (which has no name field) is used.
 - Backend (`server.js`): Express server serving the site + `/request-code`, `/verify-code` endpoints
-- Dashboard (`dashboard.html`) — black/white/gray theme (recolored from an earlier purple accent):
+- Dashboard (`dashboard.html`) — black/white/gray theme (recolored from an earlier purple accent); logo links back to the landing page; the "+ List" quick-add button in the topbar only shows on views that actually use it (Notes/Glossary/Calendar), with responsive sizing down to icon-only on narrow screens:
   - **Overview** — stats, today's agenda, progress per list
   - **Notes** — multiple independent lists, each with full CRUD (add, complete, delete, clear completed); in-place DOM updates (no full re-render flicker); optional compact display density
   - **Glossary** — rich-text term explanations, custom categories with muted colors (a small dot carries the color, card backgrounds stay neutral), priority levels, image gallery, search/filter, sorting (default/A-Z/Z-A), learned/unlearned tracking with progress bar and a flashcard review mode
@@ -23,10 +23,11 @@ Actively in development.
 - Real database (SQLite) instead of `localStorage`
 - Link notes/lists/events to the logged-in user account
 - Real email sending (e.g. Resend) instead of a console log — for login codes and calendar reminders
+- Real server-side sessions to replace the current client-side-only "remember me" (a `localStorage` timestamp, easily bypassed — not real security)
 - Working dark/light theme switch
 - Full UA/EN translation
-- Bring `login.html` in line with the new dark theme and logo (still on the old light `styles.css`)
-- Mobile polish for the rest of the dashboard (only the Glossary and the new landing page have been checked properly)
+- Mobile polish for the rest of the dashboard (only the Glossary, the landing page, and the login page have been checked properly)
+- Remove the now-unused `styles.css` (old light-theme login styles, replaced by `login.css`)
 - Deploy
 
 ## Tech stack

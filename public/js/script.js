@@ -9,9 +9,19 @@ const resendBtn = document.getElementById('resend-btn');
 const submitBtn = document.getElementById('submitBtn');
 const toast = document.getElementById('toast');
 const toastMsg = document.getElementById('toastMsg');
+const rememberMeInput = document.getElementById('remember-me');
 
 let step = 'email';
 let resendTimer = null;
+
+// A returning user (registered before, on this device) who clicked "Увійти" gets the
+// short sign-in form: no name field, no "remember me", just email + code.
+var hasRegisteredBefore = localStorage.getItem('notaHasLoggedInBefore') === 'true';
+var isSignInMode = new URLSearchParams(location.search).get('mode') === 'login' && hasRegisteredBefore;
+if (isSignInMode) {
+  document.querySelector('.auth-card').classList.add('sign-in-mode');
+  submitBtn.textContent = 'Продовжити';
+}
 
 function isValidEmail(v) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
@@ -55,8 +65,17 @@ function saveProfileToDashboard(name, email) {
   } catch (e) {
     state = {};
   }
-  state.profile = Object.assign({}, state.profile, { name: name, email: email });
+  const patch = { email: email };
+  if (name) patch.name = name;
+  state.profile = Object.assign({}, state.profile, patch);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+// TEMPORARY: stand-in for a real session until there's a backend with accounts.
+// Just a timestamp in localStorage, not an actual auth token — do not treat as secure.
+function rememberLoginFor10Days() {
+  const TEN_DAYS_MS = 10 * 24 * 60 * 60 * 1000;
+  localStorage.setItem('notaRememberedUntil', String(Date.now() + TEN_DAYS_MS));
 }
 
 function requestCode(email) {
@@ -75,7 +94,9 @@ form.addEventListener('submit', function (e) {
     const email = emailInput.value.trim();
     let ok = true;
 
-    if (!name) { setError(nameInput, true); ok = false; } else setError(nameInput, false);
+    if (!isSignInMode) {
+      if (!name) { setError(nameInput, true); ok = false; } else setError(nameInput, false);
+    }
 
     if (!email) {
       setError(emailInput, true, 'Будь ласка, введіть вашу email адресу');
@@ -114,6 +135,8 @@ form.addEventListener('submit', function (e) {
           submitBtn.textContent = 'Готово ✓';
           showToast('Вхід виконано!');
           saveProfileToDashboard(nameInput.value.trim(), emailInput.value.trim());
+          localStorage.setItem('notaHasLoggedInBefore', 'true');
+          if (!isSignInMode && rememberMeInput.checked) rememberLoginFor10Days();
           setTimeout(function () { window.location.href = '/dashboard'; }, 700);
         } else {
           setError(codeInput, true);
