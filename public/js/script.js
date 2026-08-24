@@ -1,113 +1,143 @@
-const form = document.querySelector('form');
-const input = document.querySelector('#email-input');
-const error = document.querySelector('.error-text');
-const codeWrap = document.querySelector('#code-wrap');
-const clearBtn = document.querySelector('.clear-email');
-const codeInput = document.querySelector('#code-input');
-const codeError = document.querySelector('#code-error');
+const form = document.getElementById('loginForm');
+const emailInput = document.getElementById('email-input');
+const codeInput = document.getElementById('code-input');
+const codeWrap = document.getElementById('code-wrap');
+const clearEmailBtn = document.getElementById('clear-email');
+const resendBtn = document.getElementById('resend-btn');
+const submitBtn = document.getElementById('submitBtn');
+const toast = document.getElementById('toast');
+const toastMsg = document.getElementById('toastMsg');
 
-const resendBtn = document.querySelector('#resend-btn');
-let secondsLeft = 30;
-let countdownTimer = null;
+let step = 'email';
+let resendTimer = null;
 
-function startCountdown() {
- secondsLeft = 30;
- resendBtn.disabled = true;
- resendBtn.textContent = 'Надіслати повторно ('+ secondsLeft + 'с)';
-
- countdownTimer = setInterval (function () {
-  secondsLeft = secondsLeft - 1;
-  resendBtn.textContent = 'Надіслати повторно (' + secondsLeft + 'с)';
-
-  if (secondsLeft <= 0) {
-    clearInterval(countdownTimer);
-    resendBtn.disabled = false;
-    resendBtn.textContent = 'Надіслати код підтвердження повторно';
-  }
- } , 1000);
+function isValidEmail(v) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 }
 
-resendBtn.addEventListener('click', function () {
-  fetch('/request-code', {
+function setError(input, on, message) {
+  const wrap = input.closest('.input-wrap');
+  wrap.classList.toggle('error', on);
+  if (on && message) wrap.querySelector('.error-text').textContent = message;
+}
+
+function startResendTimer(seconds) {
+  let s = seconds;
+  resendBtn.disabled = true;
+  resendBtn.textContent = 'Надіслати повторно (' + s + 'с)';
+  clearInterval(resendTimer);
+  resendTimer = setInterval(function () {
+    s--;
+    if (s <= 0) {
+      clearInterval(resendTimer);
+      resendBtn.disabled = false;
+      resendBtn.textContent = 'Надіслати повторно';
+    } else {
+      resendBtn.textContent = 'Надіслати повторно (' + s + 'с)';
+    }
+  }, 1000);
+}
+
+function showToast(msg) {
+  toastMsg.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(function () { toast.classList.remove('show'); }, 2600);
+}
+
+function requestCode(email) {
+  return fetch('/request-code', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: input.value })
+    body: JSON.stringify({ email: email })
   });
-  startCountdown();
-});
+}
 
+form.addEventListener('submit', function (e) {
+  e.preventDefault();
 
-form.addEventListener('submit', function (onSubmit) {
-  onSubmit.preventDefault();
-
-  if (!codeWrap.classList.contains('show')) {
-    if (input.value.trim() === '') {
-      error.textContent = 'Будь ласка, введіть вашу email адресу';
-      error.classList.add('show');
-      input.classList.add('error');
-    } else if (!input.checkValidity()) {
-      error.textContent = 'Введіть коректну email адресу, наприклад name@example.com';
-      error.classList.add('show');
-      input.classList.add('error');
-    } else {
-      error.classList.remove('show');
-      input.classList.remove('error');
-      codeWrap.classList.add('show');
-      input.readOnly = true;
-      clearBtn.classList.add('show');
-      setTimeout(function () {
-       codeInput.focus();
-       startCountdown();
-      }, 100);
-
-      
-      fetch('/request-code', {
-       method: 'POST',
-       headers: { 'Content-Type': 'application/json' },
-       body: JSON.stringify({ email: input.value })
-      });
+  if (step === 'email') {
+    const email = emailInput.value.trim();
+    if (!email) {
+      setError(emailInput, true, 'Будь ласка, введіть вашу email адресу');
+      return;
     }
+    if (!isValidEmail(email)) {
+      setError(emailInput, true, 'Введіть коректну email адресу, наприклад name@example.com');
+      return;
+    }
+    setError(emailInput, false);
+
+    requestCode(email);
+    codeWrap.classList.add('show');
+    step = 'code';
+    submitBtn.textContent = 'Увійти';
+    startResendTimer(30);
+    showToast('Код надіслано на пошту');
+    setTimeout(function () { codeInput.focus(); }, 400);
   } else {
+    const code = codeInput.value.trim();
+    if (!code) {
+      setError(codeInput, true);
+      return;
+    }
+
     fetch('/verify-code', {
-     method: 'POST',
-     headers: { 'Content-Type': 'application/json' },
-     body: JSON.stringify({ email: input.value, code: codeInput.value.trim() })
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: emailInput.value.trim(), code: code })
     })
-   .then(function (response) {
-    return response.json();
-    })
-   .then(function (data) {
-     if (data.success) {
-       codeError.classList.remove('show');
-       alert('Код правильний! (далі тут буде перехід у кабінет)');
-     } else {
-        codeError.classList.add('show');
-      }
-    });
+      .then(function (response) { return response.json(); })
+      .then(function (data) {
+        if (data.success) {
+          setError(codeInput, false);
+          submitBtn.textContent = 'Готово ✓';
+          showToast('Вхід виконано!');
+          setTimeout(function () { window.location.href = '/dashboard'; }, 700);
+        } else {
+          setError(codeInput, true);
+        }
+      });
   }
 });
 
-codeInput.addEventListener('input', function () {
-  codeError.classList.remove('show');
+clearEmailBtn.addEventListener('click', function () {
+  emailInput.value = '';
+  emailInput.focus();
+  if (step === 'code') {
+    codeWrap.classList.remove('show');
+    step = 'email';
+    submitBtn.textContent = 'Продовжити';
+    clearInterval(resendTimer);
+  }
 });
 
-clearBtn.addEventListener('click', function () {
-  input.readOnly = false;
-  clearBtn.classList.remove('show');
-  codeWrap.classList.remove('show');
-  input.focus();
+resendBtn.addEventListener('click', function () {
+  if (resendBtn.disabled) return;
+  requestCode(emailInput.value.trim());
+  startResendTimer(30);
+  showToast('Код надіслано повторно');
 });
 
-input.addEventListener('input', function () {
-  error.classList.remove('show');
-  input.classList.remove('error');
+codeInput.addEventListener('input', function () { setError(codeInput, false); });
+emailInput.addEventListener('input', function () { setError(emailInput, false); });
+
+const langSwitch = document.getElementById('langSwitch');
+const langToggle = document.getElementById('langToggle');
+langToggle.addEventListener('click', function (e) {
+  e.stopPropagation();
+  const open = langSwitch.classList.toggle('open');
+  langToggle.setAttribute('aria-expanded', open);
 });
-
-const langToggle = document.querySelector('.lang-toggle');
-const langMenu = document.querySelector('.lang-menu');
-
-langToggle.addEventListener('click', function () {
-  const isOpen = langToggle.classList.toggle('active');
-  langMenu.classList.toggle('show');
-  langToggle.setAttribute('aria-expanded', isOpen);
+document.querySelectorAll('.lang-menu li').forEach(function (li) {
+  li.addEventListener('click', function () {
+    document.querySelectorAll('.lang-menu li').forEach(function (x) { x.classList.remove('active'); });
+    li.classList.add('active');
+    const lang = li.dataset.lang;
+    langToggle.innerHTML = (lang === 'en' ? '🌐 EN' : '🌐 UA') + ' <span class="chevron">▾</span>';
+    langSwitch.classList.remove('open');
+  });
+});
+document.addEventListener('click', function (e) {
+  if (!langSwitch.contains(e.target)) langSwitch.classList.remove('open');
 });
