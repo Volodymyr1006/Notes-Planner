@@ -18,6 +18,7 @@
 
 <main class="auth-shell">
   <div class="auth-card">
+    <a href="/" class="back-link"><svg class="icon" viewBox="0 0 24 24"><path d="M19 12H5M11 18l-6-6 6-6"/></svg> Назад</a>
     <a href="/" class="top-logo"><img src="/imgs/logo-white.svg" alt="Notes Planner"></a>
     <p class="tagline">Твій особистий помічник</p>
     <h1>Увійти в акаунт</h1>
@@ -25,10 +26,23 @@
     <form novalidate id="loginForm">
 
       <div class="input-wrap">
+        <label for="name-input">Ім'я користувача</label>
+        <div class="field">
+          <input type="text" id="name-input" placeholder="Як до тебе звертатись?" autocomplete="off">
+          <button type="button" class="clear-email" id="clear-name" aria-label="Очистити ім'я">
+            <svg class="icon icon-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          </button>
+        </div>
+        <p class="error-text" role="alert">Введи ім'я користувача</p>
+      </div>
+
+      <div class="input-wrap">
         <label for="email-input">Email</label>
         <div class="field">
           <input type="email" id="email-input" placeholder="Твій email" autocomplete="email">
-          <button type="button" class="clear-email" id="clear-email" aria-label="Змінити email">✕</button>
+          <button type="button" class="clear-email" id="clear-email" aria-label="Змінити email">
+            <svg class="icon icon-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          </button>
         </div>
         <p class="error-text" role="alert">Будь ласка, введіть вашу email адресу</p>
       </div>
@@ -46,15 +60,13 @@
         </div>
       </div>
 
-      <button type="submit" class="submit-btn" id="submitBtn">Продовжити</button>
+      <button type="submit" class="submit-btn" id="submitBtn">Створити акаунт</button>
     </form>
 
-    <div class="lang-switch" id="langSwitch">
-      <button type="button" class="lang-toggle" id="langToggle" aria-haspopup="listbox" aria-expanded="false">🌐 UA <span class="chevron">▾</span></button>
-      <ul class="lang-menu" id="langMenu">
-        <li data-lang="en"><span class="lang-name">English (EN)</span><span class="lang-sub">English</span></li>
-        <li data-lang="ua" class="active"><span class="lang-name">Українська (UA)</span><span class="lang-sub">Ukrainian</span></li>
-      </ul>
+    <div class="lang-segment" id="langSegment" role="group" aria-label="Мова інтерфейсу">
+      <span class="lang-seg-indicator" id="langSegIndicator" aria-hidden="true"></span>
+      <button type="button" class="lang-seg-btn active" data-lang="ua" aria-pressed="true">UA</button>
+      <button type="button" class="lang-seg-btn" data-lang="en" aria-pressed="false">EN</button>
     </div>
   </div>
 </main>
